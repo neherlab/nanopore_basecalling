@@ -68,13 +68,21 @@ rule demultiplex:
         # opened before the cd below, so the path stays relative to the workdir
         exec > {log} 2>&1
         mkdir -p {output.directory}
+
+        # A record-less bam for the barcodes that got no reads. An empty file would not
+        # be valid bam, and the convert rule feeds every one of these to samtools.
+        # Taken before the cd, while {input} is still resolvable.
+        header_bam=$(mktemp)
+        trap 'rm -f "$header_bam"' EXIT
+        samtools view -b -H {input} > "$header_bam"
+
         {params.dorado} demux --output-dir {output.directory}/minknow --no-classify {input} -t {threads}
         cd {output.directory}
 
         # Since v1.2 dorado writes a nested MinKNOW tree rather than flat per-barcode files:
         #   <root>/<position>/<sample>/<run>/bam_pass/<barcodeNN>/<prefix>_..._<n>.bam
         # A single barcode can be spread over several files, so collapse each barcode into
-        # one flat file, and create an empty one for every barcode that got no reads.
+        # one flat file, and write a record-less one for every barcode that got no reads.
         found=0
         for bc in {BARCODES}; do
             mapfile -t files < <(find minknow -type f -name '*.bam' -path "*/barcode$bc/*" | sort)
@@ -82,7 +90,7 @@ rule demultiplex:
                 samtools cat -o barcode_$bc.bam "${{files[@]}}"
                 found=1
             else
-                : > barcode_$bc.bam
+                cp "$header_bam" barcode_$bc.bam
             fi
         done
 
@@ -90,7 +98,7 @@ rule demultiplex:
         if [ ${{#unclassified[@]}} -gt 0 ]; then
             samtools cat -o unclassified.bam "${{unclassified[@]}}"
         else
-            : > unclassified.bam
+            cp "$header_bam" unclassified.bam
         fi
 
         if [ $found -eq 0 ]; then
