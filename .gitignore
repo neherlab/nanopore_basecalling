@@ -1,5 +1,6 @@
 /softwares/*
 /.snakemake
+/dev
 /test_data/*
 !/test_data/raw
 !/test_data/params.tsv
