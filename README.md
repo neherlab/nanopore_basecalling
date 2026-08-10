@@ -51,7 +51,7 @@ snakemake --profile cluster --config run_dir=<path to your run folder>
 This command will launch the pipeline by submitting the appropriate jobs for cluster execution to basecall an split the 24 barcodes.
 If you want to perform basecalling for 96 barcodes instead do the following instead:
 ```
-snakemake --profile cluster --config run_dir=<path to your run folder> kit96=True
+snakemake --profile cluster --config run_dir=<path to your run folder> kit=SQK-RBK114-96
 ```
 You can monitor the progress of the pipeline in the console output. For a good nanopore run (20Gbp), the pipeline should take around 1h30 to complete.
 
@@ -63,6 +63,19 @@ If running locally (which necessitate a strong GPU, unless using faster models),
 ```
 snakemake --config run_dir=<path to your run folder> --cores <number of cores you want to use>
 ```
+
+### Settings
+The dorado binary path, the basecalling and modified-base models, the sequencing kit and the flow cell are all set in `config/config.yaml`. The number of barcodes is not configured separately: it is read from the end of the kit name, so `SQK-RBK114-96` gives 96 barcodes.
+
+You can change a setting for a single run without editing that file:
+```
+snakemake --profile cluster --config run_dir=<path to your run folder> kit=SQK-RBK114-96
+```
+or keep your own copy of the whole file:
+```
+snakemake --profile cluster --config run_dir=<path to your run folder> --configfile my_config.yaml
+```
+`run_dir` has no default and must always be given on the command line.
 
 ### Output
 Once the pipeline completes, should have more files and directories in your run folder. You should have:
@@ -77,7 +90,7 @@ This pipeline can be used to perform modified basecalling of nanopore reads. Thi
 
 The models available are listed at https://software-docs.nanoporetech.com/dorado/latest/models/list/.
 
-To perform methylation basecalling, modify the `methylation.smk` file so that the argument `DORADO_MODS` is the name of the modified basecalling model you want to use (by default it is 6mA). The model version is tied to the basecalling model in `DORADO_MODEL`, so the two need to be kept in step. The pipeline downloads whichever models you name, so there is nothing to fetch by hand. Once this is done the pipeline can be run on the cluster by using:
+To perform methylation basecalling, set `mods_model` in `config/config.yaml` to the name of the modified basecalling model you want to use (by default it is 6mA). Its version is tied to the `model` setting, so the two need to be kept in step. The pipeline downloads whichever models you name, so there is nothing to fetch by hand. Once this is done the pipeline can be run on the cluster by using:
 
 ```
 snakemake -s methylation.smk --profile cluster --config run_dir=<path to your run folder>
