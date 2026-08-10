@@ -1,9 +1,13 @@
 # Pipeline to basecall the raw data generated from our nanopore
 import time
 import os
+import sys
 
 
-# pass the path to the folder as and argument when calling snakemake: --congig input=PATH
+configfile: "config/config.yaml"
+
+
+# pass the path to the folder as an argument when calling snakemake: --config run_dir=PATH
 DATA_DIR = config["run_dir"]
 INPUT_DIR = DATA_DIR + "/raw"
 TMP_DIR = DATA_DIR + "/tmp"
@@ -12,13 +16,10 @@ STATISTICS_DIR = DATA_DIR + "/statistics"
 EXEC_TIME = time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime())
 LOGFILE = DATA_DIR + "/basecalling.log"
 
-DORADO_BIN = "softwares/dorado-2.1.1-linux-x64/bin/dorado"
-DORADO_MODELS_DIR = "softwares/dorado_models"
-DORADO_MODEL = "dna_r10.4.1_e8.2_400bps_sup@v5.2.0"
-
-# Choose the modification model here. Its version is tied to the basecalling model above,
-# so both have to be changed together.
-DORADO_MODS = "dna_r10.4.1_e8.2_400bps_sup@v5.2.0_6mA@v1"
+DORADO_BIN = config["dorado_bin"]
+DORADO_MODELS_DIR = config["models_dir"]
+DORADO_MODEL = config["model"]
+DORADO_MODS = config["mods_model"]
 
 # Models are referred to by name and downloaded by the download_model local rule, then
 # passed to dorado as a path. Passing a path (rather than a name) stops dorado from
@@ -26,17 +27,18 @@ DORADO_MODS = "dna_r10.4.1_e8.2_400bps_sup@v5.2.0_6mA@v1"
 MODEL_PATH = os.path.join(DORADO_MODELS_DIR, DORADO_MODEL)
 MODS_PATH = os.path.join(DORADO_MODELS_DIR, DORADO_MODS)
 
-# argument to define whether it was a 96 barcode run or not. Omitting this argument will default to 24 barcodes run
-if "kit96" in config.keys():
-    if config["kit96"] == True:  # if the argument is present and set to true
-        NB_BARCODES = 96
-    else:
-        NB_BARCODES = 24  # if the argument is present and set to false
-else:
-    NB_BARCODES = 24  # if the argument is not present
+NANOPORE_KIT = config["kit"]
+FLOW_CELL = config["flow_cell"]
 
-NANOPORE_KIT = "SQK-RBK114-" + str(NB_BARCODES)
-FLOW_CELL = "FLO-MIN114"
+# The number of barcodes is taken from the kit name suffix, e.g. SQK-RBK114-24.
+kit_suffix = NANOPORE_KIT.rsplit("-", 1)[-1]
+if not kit_suffix.isdigit():
+    sys.exit(
+        f"Error: cannot infer the number of barcodes from kit '{NANOPORE_KIT}'. "
+        "Expected a kit name ending in the barcode count, e.g. SQK-RBK114-24."
+    )
+
+NB_BARCODES = int(kit_suffix)
 BARCODES = [str(ii).zfill(2) for ii in range(1, NB_BARCODES + 1)]
 
 
