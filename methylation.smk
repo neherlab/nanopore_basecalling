@@ -118,11 +118,13 @@ rule convert:
         bam=OUTPUT_DIR + "/bam_files/{filename}.bam",
     output:
         fastq=TMP_DIR + "/barcoded/{filename}.fastq",
+    log:
+        LOG_DIR + "/convert/{filename}.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        samtools bam2fq {input.bam} > {output.fastq}
+        samtools bam2fq {input.bam} > {output.fastq} 2> {log}
         """
 
 
@@ -133,9 +135,11 @@ rule compress:
         input_file=TMP_DIR + "/barcoded/{filename}.fastq",
     output:
         output_file=OUTPUT_DIR + "/fastq_files/{filename}.fastq.gz",
+    log:
+        LOG_DIR + "/compress/{filename}.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        gzip -c {input} > {output}
+        gzip -c {input} > {output} 2> {log}
         """

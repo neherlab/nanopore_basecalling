@@ -103,9 +103,11 @@ rule compress:
         input_file=TMP_DIR + "/barcoded/{filename}.fastq",
     output:
         output_file=OUTPUT_DIR + "/{filename}.fastq.gz",
+    log:
+        LOG_DIR + "/compress/{filename}.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        gzip -c {input} > {output}
+        gzip -c {input} > {output} 2> {log}
         """
