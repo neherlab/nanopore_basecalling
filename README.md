@@ -81,7 +81,7 @@ snakemake --profile cluster --config run_dir=<path to your run folder> --configf
 
 ### Output
 Once the pipeline completes, should have more files and directories in your run folder. You should have:
-- A directory `final`. It contains separate `.fastq` files for all the barcodes.
+- A directory `final/fastq`. It contains separate `.fastq.gz` files for all the barcodes. With `modifications` enabled you also get `final/bam`, holding the same reads as `.bam` — see [Modified basecalling](#modified-basecalling).
 - A directory `statistics`. It contains a `.tsv` file for some statistics about the run, as well as two figures that can be used to get an idea of how the run went.
 - A log file `basecalling.log`. This file describe when and with which parameter the basecalling happened.
 - A directory `log`. It contains one file per step (basecalling, demultiplexing, statistics, plots), holding whatever dorado or the python scripts printed. If a step fails, snakemake reports the path of the file to look at.
@@ -89,12 +89,12 @@ Once the pipeline completes, should have more files and directories in your run 
 The pipeline will also generate many intermediate outputs while it runs. They are automatically removed at the end. The `log` directory is kept, so that a run can still be inspected after it finished or failed; `snakemake clean_all` removes it along with everything else.
 
 ## Modified basecalling
-This pipeline can be used to perform modified basecalling of nanopore reads. This is done by using the modified base models of dorado, which are implemented in the `methylation.smk` file.
-
-The models available are listed at https://software-docs.nanoporetech.com/dorado/latest/models/list/.
-
-To perform methylation basecalling, set `mods_model` in `config/config.yaml` to the name of the modified basecalling model you want to use (by default it is 6mA). Its version is tied to the `model` setting, so the two need to be kept in step. The pipeline downloads whichever models you name, so there is nothing to fetch by hand. Once this is done the pipeline can be run on the cluster by using:
+The same pipeline can call modified bases (methylation) alongside the sequence. Set `modifications` to `true` in `config/config.yaml`, or for a single run:
 
 ```
-snakemake -s methylation.smk --profile cluster --config run_dir=<path to your run folder>
+snakemake --profile cluster --config run_dir=<path to your run folder> modifications=True
 ```
+
+`mods_model` chooses which modification is called (6mA by default). The models available are listed at https://software-docs.nanoporetech.com/dorado/latest/models/list/. Its version is tied to the `model` setting, so the two need to be kept in step. The pipeline downloads whichever models you name, so there is nothing to fetch by hand.
+
+A modified-base run additionally produces `final/bam`, with one `.bam` per barcode. **These are the real output of such a run**: the modification tags cannot be stored in a FASTQ file, so they only exist in the `.bam`. The `final/fastq` files are produced as usual, without the modification information.
