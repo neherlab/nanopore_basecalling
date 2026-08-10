@@ -1,0 +1,34 @@
+executor: slurm
+jobs: 25
+latency-wait: 90
+
+software-deployment-method: conda
+rerun-incomplete: True
+printshellcmds: False
+keep-going: False
+
+set-threads:
+  basecall: 32
+
+default-resources:
+  runtime: 29
+  mem_mb: 4000
+  slurm_extra: "'--qos=30min'"
+
+set-resources:
+  basecall:
+    runtime: 355
+    mem_mb: 100000
+    nodes: 1
+    slurm_partition: "a100"
+    gres: "gpu:4"
+    slurm_extra: "'--qos=a100-6hours'"
+  demultiplex:
+    runtime: 30
+    mem_mb: 16000
+  combine_stats:
+    mem_mb: 16000
+  make_plots_lengths:
+    mem_mb: 16000
+  make_plots_quality:
+    mem_mb: 16000
