@@ -24,16 +24,16 @@ Start by cloning this repo (on the cluster, if aiming for cluster execution):
 git clone https://github.com/vdruelle/nanopore_basecalling.git
 ```
 
-Once this is done, you need to download dorado (https://github.com/nanoporetech/dorado, linux-x64 in our case), unpack it and move the folder called `dorado-0.7.0-linux-x64` to the directory `softwares/`.
+Once this is done, you need to download dorado (https://github.com/nanoporetech/dorado, linux-x64 in our case), unpack it and move the folder called `dorado-2.1.1-linux-x64` to the directory `softwares/`.
 
-You can then download the appropriate dorado model into the directory `softwares/doarado_models` by typing:
+You do not need to download the basecalling model yourself: the pipeline fetches it into `softwares/dorado_models/` on first use and reuses it afterwards. If you do want to pre-fetch it (for instance to work offline), you can run:
 ```
-./softwares/dorado-0.5.0-linux-x64/bin/dorado download --model dna_r10.4.1_e8.2_400bps_sup@v5.0.0 --directory softwares/dorado_models
+./softwares/dorado-2.1.1-linux-x64/bin/dorado download --model dna_r10.4.1_e8.2_400bps_sup@v5.2.0 --models-directory softwares/dorado_models
 ```
 
 Last you need to create the conda environment for the pipeline:
 ```
-conda env create -f conda_env/nanopore_basecalling.yml
+conda env create -f conda_envs/nanopore_basecalling.yml
 ```
 
 ### Running the pipeline
@@ -55,6 +55,8 @@ snakemake --profile cluster --config run_dir=<path to your run folder> kit96=Tru
 ```
 You can monitor the progress of the pipeline in the console output. For a good nanopore run (20Gbp), the pipeline should take around 1h30 to complete.
 
+Note that the pipeline must be launched from the login node. Downloading the dorado model is a local rule, and the compute nodes have no internet access.
+
 #### Local execution
 If running locally (which necessitate a strong GPU, unless using faster models), also start by activating the conda environment. Then launch the pipeline with:
 
@@ -73,10 +75,9 @@ The pipeline will also generate many intermediate outputs while it runs. They ar
 ## Modified basecalling
 This pipeline can be used to perform modified basecalling of nanopore reads. This is done by using the modified base models of dorado, which are implemented in the `methylation.smk` file.
 
-The models available are shown on the Dorado github page: https://github.com/nanoporetech/dorado.
-The appropriate model needs to be downloaded and put in the `softwares/doarado_models` first.
+The models available are listed at https://software-docs.nanoporetech.com/dorado/latest/models/list/.
 
-To perform methylation basecalling, modify the `methylation.smk` file so that the argument `DORADO_MODS` corresponds to the modified basecalling you want to perform (by default it is 6mA). Once this is done the pipeline can be run on the cluster by using:
+To perform methylation basecalling, modify the `methylation.smk` file so that the argument `DORADO_MODS` is the name of the modified basecalling model you want to use (by default it is 6mA). The model version is tied to the basecalling model in `DORADO_MODEL`, so the two need to be kept in step. The pipeline downloads whichever models you name, so there is nothing to fetch by hand. Once this is done the pipeline can be run on the cluster by using:
 
 ```
 snakemake -s methylation.smk --profile cluster --config run_dir=<path to your run folder>
