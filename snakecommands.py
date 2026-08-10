@@ -19,11 +19,22 @@ def generate_log_file(log_file, dorado_bin, dorado_model, flow_cell, nanopore_ki
 
     logfile = pathlib.Path(log_file)
     data_dir = logfile.parent
-    data_dir.mkdir(exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
 
-    reporemote = subprocess.check_output("git remote -v | head -n 1", shell=True).decode()
-    commitID = subprocess.check_output("git rev-parse HEAD", shell=True).decode()
-    doradover = subprocess.check_output(dorado_bin + " -v 2>&1", shell=True).decode()
+    def capture(command, default="unknown"):
+        """Run a command for the log, without letting a failure abort the whole run."""
+        try:
+            out = subprocess.check_output(command, shell=True, stderr=subprocess.DEVNULL)
+        except (subprocess.CalledProcessError, OSError):
+            return default
+        return out.decode().strip() or default
+
+    reporemote = capture("git remote -v | head -n 1")
+    commitID = capture("git rev-parse HEAD")
+    # A commit ID only pins the code if the working tree matched it.
+    if capture("git status --porcelain", default=""):
+        commitID += " (with uncommitted local changes)"
+    doradover = capture(dorado_bin + " -v 2>&1")
 
     log_text = f"""
 Log-file for the basecalling executed by the Snakemake script.
