@@ -1,5 +1,5 @@
-# Configuration and rules shared by the basecalling workflows.
-# Included by both Snakefile and methylation.smk.
+# Configuration, validation and the generic post-processing rules of the pipeline.
+# Included by the Snakefile, which holds the dorado steps.
 import time
 import os
 import sys
@@ -33,6 +33,24 @@ DORADO_MODEL = config["model"]
 # passed to dorado as a path. Passing a path (rather than a name) stops dorado from
 # trying to resolve the model over the network, which compute nodes cannot do.
 MODEL_PATH = os.path.join(DORADO_MODELS_DIR, DORADO_MODEL)
+
+# Whether to call modified bases alongside the sequence.
+MODIFICATIONS = bool(config["modifications"])
+DORADO_MODS = config.get("mods_model")
+if MODIFICATIONS and not DORADO_MODS:
+    sys.exit(
+        "Error: 'modifications' is set but 'mods_model' is empty. Give the name of a "
+        "modified-base model in the config file, e.g. "
+        "dna_r10.4.1_e8.2_400bps_sup@v5.2.0_6mA@v1."
+    )
+MODS_PATH = os.path.join(DORADO_MODELS_DIR, DORADO_MODS) if MODIFICATIONS else None
+
+# Demultiplexing always writes bam, which is then converted to fastq. With modified
+# bases the bam is a deliverable in its own right — fastq cannot carry the MM/ML tags —
+# so it lives under final/ and survives the clean rule. Without them it is a plain
+# intermediate, and goes to tmp/ where clean removes it.
+FASTQ_DIR = os.path.join(OUTPUT_DIR, "fastq")
+BAM_DIR = os.path.join(OUTPUT_DIR, "bam") if MODIFICATIONS else os.path.join(TMP_DIR, "bam")
 
 NANOPORE_KIT = config["kit"]
 FLOW_CELL = config["flow_cell"]

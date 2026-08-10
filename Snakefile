@@ -1,5 +1,6 @@
-# Pipeline to basecall the raw data generated from our nanopore.
-# Configuration and the rules shared with methylation.smk live in common.smk.
+# Pipeline to basecall the raw data generated from our nanopore, optionally calling
+# modified bases as well. Set `modifications` in config/config.yaml to choose.
+# Configuration and the generic post-processing rules live in common.smk.
 
 
 include: "common.smk"
@@ -7,8 +8,14 @@ include: "common.smk"
 
 rule all:
     input:
-        barcodes=expand(os.path.join(OUTPUT_DIR, "barcode_{barcode}.fastq.gz"), barcode=BARCODES),
-        unclassified=os.path.join(OUTPUT_DIR, "unclassified.fastq.gz"),
+        fastq=expand(os.path.join(FASTQ_DIR, "barcode_{barcode}.fastq.gz"), barcode=BARCODES),
+        unclassified=os.path.join(FASTQ_DIR, "unclassified.fastq.gz"),
+        # With modified bases the bam files are an output, not an intermediate.
+        bam=(
+            expand(os.path.join(BAM_DIR, "barcode_{barcode}.bam"), barcode=BARCODES)
+            if MODIFICATIONS
+            else []
+        ),
         plot1=os.path.join(STATISTICS_DIR, "len_hist.png"),
         plot2=os.path.join(STATISTICS_DIR, "bp_per_barcode.png"),
         plot3=os.path.join(STATISTICS_DIR, "quality_mean.png"),
@@ -24,19 +31,23 @@ rule basecall:
         input_dir=INPUT_DIR,
         logfile=LOGFILE,
         model=MODEL_PATH,
+        # Only a dependency when modified bases are called, so that download_model is
+        # not asked for a model the run does not need.
+        mods=MODS_PATH if MODIFICATIONS else [],
     output:
-        file=TMP_DIR + "/dorado_raw/basecalled.bam",
+        file=os.path.join(TMP_DIR, "dorado_raw/basecalled.bam"),
     log:
-        LOG_DIR + "/basecall.log",
+        os.path.join(LOG_DIR, "basecall.log"),
     conda:
         "conda_envs/nanopore_basecalling.yml"
     params:
         kit=NANOPORE_KIT,
         model=DORADO_MODEL,
         dorado=DORADO_BIN,
+        mods_flag=("--modified-bases-models " + MODS_PATH) if MODIFICATIONS else "",
     shell:
         """
-        {params.dorado} basecaller {input.model} {input.input_dir} --kit-name {params.kit} > {output.file} 2> {log}
+        {params.dorado} basecaller {input.model} {input.input_dir} {params.mods_flag} --kit-name {params.kit} > {output.file} 2> {log}
         """
 
 
@@ -46,11 +57,11 @@ rule demultiplex:
     input:
         rules.basecall.output.file,
     output:
-        directory=directory(TMP_DIR + "/barcoded"),
-        barcodes=expand(TMP_DIR + "/barcoded/barcode_{barcode}.fastq", barcode=BARCODES),
-        unclassified=TMP_DIR + "/barcoded/unclassified.fastq",
+        directory=directory(BAM_DIR),
+        barcodes=expand(os.path.join(BAM_DIR, "barcode_{barcode}.bam"), barcode=BARCODES),
+        unclassified=os.path.join(BAM_DIR, "unclassified.bam"),
     log:
-        LOG_DIR + "/demultiplex.log",
+        os.path.join(LOG_DIR, "demultiplex.log"),
     conda:
         "conda_envs/nanopore_basecalling.yml"
     params:
@@ -61,33 +72,41 @@ rule demultiplex:
         # opened before the cd below, so the path stays relative to the workdir
         exec > {log} 2>&1
         mkdir -p {output.directory}
-        {params.dorado} demux --output-dir {output.directory}/minknow --no-classify {input} -t {threads} --emit-fastq
+
+        # A record-less bam for the barcodes that got no reads. An empty file would not
+        # be valid bam, and the convert rule feeds every one of these to samtools.
+        # Taken before the cd, while {input} is still resolvable.
+        header_bam=$(mktemp)
+        trap 'rm -f "$header_bam"' EXIT
+        samtools view -b -H {input} > "$header_bam"
+
+        {params.dorado} demux --output-dir {output.directory}/minknow --no-classify {input} -t {threads}
         cd {output.directory}
 
         # Since v1.2 dorado writes a nested MinKNOW tree rather than flat per-barcode files:
-        #   <root>/<position>/<sample>/<run>/fastq_pass/<barcodeNN>/<prefix>_..._<n>.fastq
+        #   <root>/<position>/<sample>/<run>/bam_pass/<barcodeNN>/<prefix>_..._<n>.bam
         # A single barcode can be spread over several files, so collapse each barcode into
-        # one flat file, and create an empty one for every barcode that got no reads.
+        # one flat file, and write a record-less one for every barcode that got no reads.
         found=0
         for bc in {BARCODES}; do
-            mapfile -t files < <(find minknow -type f -name '*.fastq' -path "*/barcode$bc/*" | sort)
+            mapfile -t files < <(find minknow -type f -name '*.bam' -path "*/barcode$bc/*" | sort)
             if [ ${{#files[@]}} -gt 0 ]; then
-                cat "${{files[@]}}" > barcode_$bc.fastq
+                samtools cat -o barcode_$bc.bam "${{files[@]}}"
                 found=1
             else
-                : > barcode_$bc.fastq
+                cp "$header_bam" barcode_$bc.bam
             fi
         done
 
-        mapfile -t unclassified < <(find minknow -type f -name '*.fastq' -path '*/unclassified/*' | sort)
+        mapfile -t unclassified < <(find minknow -type f -name '*.bam' -path '*/unclassified/*' | sort)
         if [ ${{#unclassified[@]}} -gt 0 ]; then
-            cat "${{unclassified[@]}}" > unclassified.fastq
+            samtools cat -o unclassified.bam "${{unclassified[@]}}"
         else
-            : > unclassified.fastq
+            cp "$header_bam" unclassified.bam
         fi
 
         if [ $found -eq 0 ]; then
-            echo "ERROR: dorado demux produced no per-barcode fastq files under $(pwd)/minknow." >&2
+            echo "ERROR: dorado demux produced no per-barcode bam files under $(pwd)/minknow." >&2
             echo "Its output layout has probably changed again. Found instead:" >&2
             find minknow >&2
             exit 1
@@ -96,15 +115,32 @@ rule demultiplex:
         """
 
 
+rule convert:
+    message:
+        "Converting the file {input.bam} file to .fastq format."
+    input:
+        bam=os.path.join(BAM_DIR, "{filename}.bam"),
+    output:
+        fastq=os.path.join(TMP_DIR, "barcoded/{filename}.fastq"),
+    log:
+        os.path.join(LOG_DIR, "convert/{filename}.log"),
+    conda:
+        "conda_envs/nanopore_basecalling.yml"
+    shell:
+        """
+        samtools bam2fq {input.bam} > {output.fastq} 2> {log}
+        """
+
+
 rule compress:
     message:
         "Generating the final compressed file {output.output_file}."
     input:
-        input_file=TMP_DIR + "/barcoded/{filename}.fastq",
+        input_file=os.path.join(TMP_DIR, "barcoded/{filename}.fastq"),
     output:
-        output_file=OUTPUT_DIR + "/{filename}.fastq.gz",
+        output_file=os.path.join(FASTQ_DIR, "{filename}.fastq.gz"),
     log:
-        LOG_DIR + "/compress/{filename}.log",
+        os.path.join(LOG_DIR, "compress/{filename}.log"),
     conda:
         "conda_envs/nanopore_basecalling.yml"
     shell:
