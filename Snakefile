@@ -52,28 +52,42 @@ rule demultiplex:
         "conda_envs/nanopore_basecalling.yml"
     params:
         dorado=DORADO_BIN,
-        kit=NANOPORE_KIT,
     threads: 4
     shell:
         """
         mkdir -p {output.directory}
-        {params.dorado} demux --output-dir {output.directory} --no-classify {input} -t {threads} --emit-fastq
+        {params.dorado} demux --output-dir {output.directory}/minknow --no-classify {input} -t {threads} --emit-fastq
         cd {output.directory}
-        shopt -s nullglob
-        demuxed=({params.kit}_barcode*.fastq)
-        if [ ${{#demuxed[@]}} -eq 0 ]; then
-            echo "ERROR: dorado demux produced no {params.kit}_barcode*.fastq files in $(pwd)." >&2
-            echo "Its output layout has probably changed; the rename below would silently" >&2
-            echo "leave every barcode empty. Found instead:" >&2
-            ls -la >&2
-            exit 1
-        fi
-        for file in "${{demuxed[@]}}"; do mv "$file" "${{file/{params.kit}_barcode/barcode_}}"; done
+
+        # Since v1.2 dorado writes a nested MinKNOW tree rather than flat per-barcode files:
+        #   <root>/<position>/<sample>/<run>/fastq_pass/<barcodeNN>/<prefix>_..._<n>.fastq
+        # A single barcode can be spread over several files, so collapse each barcode into
+        # one flat file, and create an empty one for every barcode that got no reads.
+        found=0
         for bc in {BARCODES}; do
-            if ! [[ -e barcode_$bc.fastq ]]; then
-                touch barcode_$bc.fastq
+            mapfile -t files < <(find minknow -type f -name '*.fastq' -path "*/barcode$bc/*" | sort)
+            if [ ${{#files[@]}} -gt 0 ]; then
+                cat "${{files[@]}}" > barcode_$bc.fastq
+                found=1
+            else
+                : > barcode_$bc.fastq
             fi
         done
+
+        mapfile -t unclassified < <(find minknow -type f -name '*.fastq' -path '*/unclassified/*' | sort)
+        if [ ${{#unclassified[@]}} -gt 0 ]; then
+            cat "${{unclassified[@]}}" > unclassified.fastq
+        else
+            : > unclassified.fastq
+        fi
+
+        if [ $found -eq 0 ]; then
+            echo "ERROR: dorado demux produced no per-barcode fastq files under $(pwd)/minknow." >&2
+            echo "Its output layout has probably changed again. Found instead:" >&2
+            find minknow >&2
+            exit 1
+        fi
+        rm -rf minknow
         """
 
 
