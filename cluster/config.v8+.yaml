@@ -13,8 +13,11 @@ set-threads:
 default-resources:
   runtime: 29
   mem_mb: 4000
-  slurm_extra: "'--qos=30min'"
+  qos: "30min"
 
+# Do not add a `tasks` resource to a rule that also asks for GPUs: the slurm
+# executor turns it into `--ntasks-per-gpu`, which starts one copy of the job
+# per GPU. Basecalling wants a single task holding all four GPUs.
 set-resources:
   basecall:
     runtime: 355
@@ -22,7 +25,7 @@ set-resources:
     nodes: 1
     slurm_partition: "a100"
     gres: "gpu:4"
-    slurm_extra: "'--qos=a100-6hours'"
+    qos: "a100-6hours"
   demultiplex:
     runtime: 30
     mem_mb: 16000
