@@ -230,6 +230,6 @@ rule clean_all:
         rm -rf {STATISTICS_DIR}
         rm -rf {TMP_DIR}
         rm -rf {LOG_DIR}
-        rm -f {OUTPUT_DIR}/basecalling.log
+        rm -f {LOGFILE}
         rm -f {rules.clean.output}
         """
