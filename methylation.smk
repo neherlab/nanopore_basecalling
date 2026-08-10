@@ -33,6 +33,8 @@ rule basecall:
         mods=MODS_PATH,
     output:
         file=TMP_DIR + "/dorado_raw/basecalled.bam",
+    log:
+        LOG_DIR + "/basecall.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     params:
@@ -41,7 +43,7 @@ rule basecall:
         dorado=DORADO_BIN,
     shell:
         """
-        {params.dorado} basecaller {input.model} {input.input_dir} --modified-bases-models {input.mods} --kit-name {params.kit} > {output.file}
+        {params.dorado} basecaller {input.model} {input.input_dir} --modified-bases-models {input.mods} --kit-name {params.kit} > {output.file} 2> {log}
         """
 
 
@@ -54,6 +56,8 @@ rule demultiplex:
         directory=directory(OUTPUT_DIR + "/bam_files"),
         barcodes=expand(OUTPUT_DIR + "/bam_files/barcode_{barcode}.bam", barcode=BARCODES),
         unclassified=OUTPUT_DIR + "/bam_files/unclassified.bam",
+    log:
+        LOG_DIR + "/demultiplex.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     params:
@@ -61,6 +65,8 @@ rule demultiplex:
     threads: 4
     shell:
         """
+        # opened before the cd below, so the path stays relative to the workdir
+        exec > {log} 2>&1
         mkdir -p {output.directory}
         {params.dorado} demux --output-dir {output.directory}/minknow --no-classify {input} -t {threads}
         cd {output.directory}

@@ -19,6 +19,9 @@ INPUT_DIR = os.path.join(DATA_DIR, "raw")
 TMP_DIR = os.path.join(DATA_DIR, "tmp")
 OUTPUT_DIR = os.path.join(DATA_DIR, "final")
 STATISTICS_DIR = os.path.join(DATA_DIR, "statistics")
+# Per-rule logs. Kept out of TMP_DIR on purpose, so that they survive the clean rule
+# and are still there to look at after a failed or a finished run.
+LOG_DIR = os.path.join(DATA_DIR, "log")
 EXEC_TIME = time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime())
 LOGFILE = os.path.join(DATA_DIR, "basecalling.log")
 
@@ -87,6 +90,8 @@ wildcard_constraints:
 rule generate_log_file:
     output:
         LOGFILE,
+    log:
+        LOG_DIR + "/generate_log_file.log",
     params:
         dorado=DORADO_BIN,
         model=DORADO_MODEL,
@@ -97,6 +102,7 @@ rule generate_log_file:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
+        exec > {log} 2>&1
         python snakecommands.py generate-log-file {output} \
         {params.dorado} \
         {params.model} \
@@ -112,12 +118,14 @@ rule download_model:
         "Downloading the dorado model {wildcards.model}."
     output:
         model_dir=directory(os.path.join(DORADO_MODELS_DIR, "{model}")),
+    log:
+        LOG_DIR + "/download_model_{model}.log",
     params:
         dorado=DORADO_BIN,
         models_dir=DORADO_MODELS_DIR,
     shell:
         """
-        {params.dorado} download --model {wildcards.model} --models-directory {params.models_dir}
+        {params.dorado} download --model {wildcards.model} --models-directory {params.models_dir} > {log} 2>&1
         """
 
 
@@ -128,11 +136,13 @@ rule stats:
         input_file=TMP_DIR + "/barcoded/{filename}.fastq",
     output:
         output_file=TMP_DIR + "/stats/{filename}.tsv",
+    log:
+        LOG_DIR + "/stats/{filename}.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py generate-stats {input} {output}
+        python snakecommands.py generate-stats {input} {output} > {log} 2>&1
         """
 
 
@@ -146,13 +156,15 @@ rule combine_stats:
         output_lengths=STATISTICS_DIR + "/lengths.tsv",
         output_quality_mean=STATISTICS_DIR + "/quality.tsv",
         output_quality_std=STATISTICS_DIR + "/quality_std.tsv",
+    log:
+        LOG_DIR + "/combine_stats.log",
     params:
         nb_barcodes=NB_BARCODES,
     conda:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py combine-stats {TMP_DIR}/stats {output.output_lengths} {output.output_quality_mean} {output.output_quality_std} {params.nb_barcodes}
+        python snakecommands.py combine-stats {TMP_DIR}/stats {output.output_lengths} {output.output_quality_mean} {output.output_quality_std} {params.nb_barcodes} > {log} 2>&1
         """
 
 
@@ -164,11 +176,13 @@ rule make_plots_lengths:
     output:
         len_hist=STATISTICS_DIR + "/len_hist.png",
         bp_per_barcode=STATISTICS_DIR + "/bp_per_barcode.png",
+    log:
+        LOG_DIR + "/make_plots_lengths.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py make-plots-lengths {input.stats_file_lengths}
+        python snakecommands.py make-plots-lengths {input.stats_file_lengths} > {log} 2>&1
         """
 
 
@@ -181,11 +195,13 @@ rule make_plots_quality:
     output:
         quality_mean_plot=STATISTICS_DIR + "/quality_mean.png",
         quality_std_plot=STATISTICS_DIR + "/quality_std.png",
+    log:
+        LOG_DIR + "/make_plots_quality.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py make-plots-quality {input.stats_file_quality_mean} {input.stats_file_quality_std}
+        python snakecommands.py make-plots-quality {input.stats_file_quality_mean} {input.stats_file_quality_std} > {log} 2>&1
         """
 
 
@@ -213,7 +229,7 @@ rule clean_all:
         rm -rf {OUTPUT_DIR}
         rm -rf {STATISTICS_DIR}
         rm -rf {TMP_DIR}
-        rm -rf log
+        rm -rf {LOG_DIR}
         rm -f {OUTPUT_DIR}/basecalling.log
         rm -f {rules.clean.output}
         """

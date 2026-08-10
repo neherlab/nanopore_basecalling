@@ -26,6 +26,8 @@ rule basecall:
         model=MODEL_PATH,
     output:
         file=TMP_DIR + "/dorado_raw/basecalled.bam",
+    log:
+        LOG_DIR + "/basecall.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     params:
@@ -34,7 +36,7 @@ rule basecall:
         dorado=DORADO_BIN,
     shell:
         """
-        {params.dorado} basecaller {input.model} {input.input_dir} --kit-name {params.kit} > {output.file}
+        {params.dorado} basecaller {input.model} {input.input_dir} --kit-name {params.kit} > {output.file} 2> {log}
         """
 
 
@@ -47,6 +49,8 @@ rule demultiplex:
         directory=directory(TMP_DIR + "/barcoded"),
         barcodes=expand(TMP_DIR + "/barcoded/barcode_{barcode}.fastq", barcode=BARCODES),
         unclassified=TMP_DIR + "/barcoded/unclassified.fastq",
+    log:
+        LOG_DIR + "/demultiplex.log",
     conda:
         "conda_envs/nanopore_basecalling.yml"
     params:
@@ -54,6 +58,8 @@ rule demultiplex:
     threads: 4
     shell:
         """
+        # opened before the cd below, so the path stays relative to the workdir
+        exec > {log} 2>&1
         mkdir -p {output.directory}
         {params.dorado} demux --output-dir {output.directory}/minknow --no-classify {input} -t {threads} --emit-fastq
         cd {output.directory}

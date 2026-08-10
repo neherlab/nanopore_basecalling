@@ -82,8 +82,9 @@ Once the pipeline completes, should have more files and directories in your run 
 - A directory `final`. It contains separate `.fastq` files for all the barcodes.
 - A directory `statistics`. It contains a `.tsv` file for some statistics about the run, as well as two figures that can be used to get an idea of how the run went.
 - A log file `basecalling.log`. This file describe when and with which parameter the basecalling happened.
+- A directory `log`. It contains one file per step (basecalling, demultiplexing, statistics, plots), holding whatever dorado or the python scripts printed. If a step fails, snakemake reports the path of the file to look at.
 
-The pipeline will also generate many intermediate outputs while it runs. They are automatically removed at the end.
+The pipeline will also generate many intermediate outputs while it runs. They are automatically removed at the end. The `log` directory is kept, so that a run can still be inspected after it finished or failed; `snakemake clean_all` removes it along with everything else.
 
 ## Modified basecalling
 This pipeline can be used to perform modified basecalling of nanopore reads. This is done by using the modified base models of dorado, which are implemented in the `methylation.smk` file.
