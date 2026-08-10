@@ -124,18 +124,23 @@ def combine_stats(stats_dir, output_lengths, output_quality_mean, output_quality
     df_quality_mean.to_csv(output_quality_mean, index=False, sep="\t")
     df_quality_std.to_csv(output_quality_std, index=False, sep="\t")
 
+def barcode_labels(columns):
+    "Short x-tick labels taken from the column names, e.g. barcode_07 -> 07."
+    return [column.replace("barcode_", "") for column in columns]
+
+
 @cli.command()
 @click.argument("stats_file", type=click.Path(exists=True))
-def make_plots_lengths(stats_file):
+@click.argument("len_hist", type=click.Path())
+@click.argument("bp_per_barcode", type=click.Path())
+def make_plots_lengths(stats_file, len_hist, bp_per_barcode):
     "Generates the length statistics plots."
-    import os
-
     import matplotlib.pyplot as plt
     import pandas as pd
     import seaborn as sns
 
     df = pd.read_csv(stats_file, sep="\t")
-    output = os.path.split(stats_file)[:-1][0]
+    labels = barcode_labels(df.columns)
 
     # log-length distribution by barcode, normalized
     plt.figure(figsize=(12,8))
@@ -143,9 +148,9 @@ def make_plots_lengths(stats_file):
     plt.yscale("log")
     plt.ylabel("Length of reads")
     plt.xlabel("Barcode")  # Set the x-axis label
-    plt.xticks(range(len(df.columns)), [f"{ii:02d}" for ii in range(1, len(df.columns))]+["unclassified"], rotation=80, fontsize="small")
+    plt.xticks(range(len(df.columns)), labels, rotation=80, fontsize="small")
     plt.tight_layout()
-    plt.savefig(f"{output}/len_hist.png", facecolor="w", dpi=200)
+    plt.savefig(len_hist, facecolor="w", dpi=200)
 
 
     sum_values = df.sum() / 1e6
@@ -156,40 +161,39 @@ def make_plots_lengths(stats_file):
     plt.xlabel("Barcode")  # Set the x-axis label
     plt.ylabel("MBp")  # Set the y-axis label
     plt.title("Number of Basepairs for Each Barcode")  # Set the title of the plot
-    plt.xticks(range(len(df.columns)), [f"{ii:02d}" for ii in range(1, len(df.columns))]+["unclassified"], rotation=80, fontsize="small")
+    plt.xticks(range(len(df.columns)), labels, rotation=80, fontsize="small")
     plt.tight_layout()
-    plt.savefig(f"{output}/bp_per_barcode.png", facecolor="w", dpi=200)
+    plt.savefig(bp_per_barcode, facecolor="w", dpi=200)
 
 @cli.command()
 @click.argument("stats_file_mean", type=click.Path(exists=True))
 @click.argument("stats_file_std", type=click.Path(exists=True))
-def make_plots_quality(stats_file_mean, stats_file_std):
+@click.argument("quality_mean_plot", type=click.Path())
+@click.argument("quality_std_plot", type=click.Path())
+def make_plots_quality(stats_file_mean, stats_file_std, quality_mean_plot, quality_std_plot):
     "Generates the quality statistics plots."
-    import os
-
     import matplotlib.pyplot as plt
     import pandas as pd
     import seaborn as sns
 
     df_mean = pd.read_csv(stats_file_mean, sep="\t")
     df_std = pd.read_csv(stats_file_std, sep="\t")
-    output_dir = os.path.split(stats_file_mean)[:-1][0]
 
     plt.figure(figsize=(12,8))
     sns.violinplot(data=df_mean, orient="v")
     plt.ylabel("Mean quality")
-    plt.xticks(range(len(df_mean.columns)), [f"{ii:02d}" for ii in range(1, len(df_mean.columns))]+["unclassified"], rotation=80, fontsize="small")
+    plt.xticks(range(len(df_mean.columns)), barcode_labels(df_mean.columns), rotation=80, fontsize="small")
     plt.xlabel("Barcode")  # Set the x-axis label
     plt.tight_layout()
-    plt.savefig(f"{output_dir}/quality_mean.png", facecolor="w", dpi=200)
+    plt.savefig(quality_mean_plot, facecolor="w", dpi=200)
 
     plt.figure(figsize=(12,8))
     sns.violinplot(data=df_std, orient="v")
     plt.ylabel("Std of quality")
-    plt.xticks(range(len(df_mean.columns)), [f"{ii:02d}" for ii in range(1, len(df_mean.columns))]+["unclassified"], rotation=80, fontsize="small")
+    plt.xticks(range(len(df_std.columns)), barcode_labels(df_std.columns), rotation=80, fontsize="small")
     plt.xlabel("Barcode")  # Set the x-axis label
     plt.tight_layout()
-    plt.savefig(f"{output_dir}/quality_std.png", facecolor="w", dpi=200)
+    plt.savefig(quality_std_plot, facecolor="w", dpi=200)
 
 if __name__ == "__main__":
     cli()

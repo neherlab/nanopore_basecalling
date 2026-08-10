@@ -182,7 +182,7 @@ rule make_plots_lengths:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py make-plots-lengths {input.stats_file_lengths} > {log} 2>&1
+        python snakecommands.py make-plots-lengths {input.stats_file_lengths} {output.len_hist} {output.bp_per_barcode} > {log} 2>&1
         """
 
 
@@ -201,7 +201,7 @@ rule make_plots_quality:
         "conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py make-plots-quality {input.stats_file_quality_mean} {input.stats_file_quality_std} > {log} 2>&1
+        python snakecommands.py make-plots-quality {input.stats_file_quality_mean} {input.stats_file_quality_std} {output.quality_mean_plot} {output.quality_std_plot} > {log} 2>&1
         """
 
 
