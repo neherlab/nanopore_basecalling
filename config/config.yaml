@@ -9,8 +9,12 @@
 dorado_bin: "softwares/dorado-2.1.1-linux-x64/bin/dorado"
 models_dir: "softwares/dorado_models"
 model: "dna_r10.4.1_e8.2_400bps_sup@v5.2.0"
-# Modified-base model, used by methylation.smk only. Its version is tied to `model`,
-# so the two have to be changed together.
+
+# Call modified bases as well as the sequence. When true the per-barcode bam files are
+# kept in final/bam, since fastq cannot carry the modification tags.
+modifications: false
+# Model used when `modifications` is true. Its version is tied to `model`, so the two
+# have to be changed together.
 mods_model: "dna_r10.4.1_e8.2_400bps_sup@v5.2.0_6mA@v1"
 
 # Sequencing protocol. The number of barcodes is taken from the kit name suffix.
