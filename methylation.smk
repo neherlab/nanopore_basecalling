@@ -109,7 +109,6 @@ rule basecall:
         model=MODEL_PATH,
         mods=MODS_PATH,
     output:
-        directory=directory(TMP_DIR + "/dorado_raw"),
         file=TMP_DIR + "/dorado_raw/basecalled.bam",
     conda:
         "conda_envs/nanopore_basecalling.yml"
