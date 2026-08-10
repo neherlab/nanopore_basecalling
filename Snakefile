@@ -1,5 +1,4 @@
 # Pipeline to basecall the raw data generated from our nanopore
-import pathlib
 import time
 import os
 import sys
@@ -14,8 +13,14 @@ STATISTICS_DIR = os.path.join(DATA_DIR, "statistics")
 EXEC_TIME = time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime())
 LOGFILE = os.path.join(DATA_DIR, "basecalling.log")
 
-DORADO_BIN = "softwares/dorado-0.7.0-linux-x64/bin/dorado"
-DORADO_MODEL = "softwares/dorado_models/dna_r10.4.1_e8.2_400bps_sup@v5.0.0"
+DORADO_BIN = "softwares/dorado-2.1.1-linux-x64/bin/dorado"
+DORADO_MODELS_DIR = "softwares/dorado_models"
+DORADO_MODEL = "dna_r10.4.1_e8.2_400bps_sup@v5.2.0"
+
+# Models are referred to by name and downloaded by the download_model local rule, then
+# passed to dorado as a path. Passing a path (rather than a name) stops dorado from
+# trying to resolve the model over the network, which compute nodes cannot do.
+MODEL_PATH = os.path.join(DORADO_MODELS_DIR, DORADO_MODEL)
 
 # argument to define whether it was a 96 barcode run or not. Omitting this argument will default to 24 barcodes run
 if "kit96" in config.keys():
@@ -29,9 +34,6 @@ else:
 NANOPORE_KIT = "SQK-RBK114-" + str(NB_BARCODES)
 FLOW_CELL = "FLO-MIN114"
 BARCODES = [str(ii).zfill(2) for ii in range(1, NB_BARCODES + 1)]
-
-# create log directory if it does not exists
-pathlib.Path("log").mkdir(exist_ok=True)
 
 
 # Check that DATA_DIR exists
@@ -63,8 +65,13 @@ if not os.listdir(INPUT_DIR):
 localrules:
     all,
     generate_log_file,
+    download_model,
     clean,
     clean_all,
+
+
+wildcard_constraints:
+    model=r"dna_r[0-9.]+_e[0-9.]+_[0-9]+bps_[a-z]+@v[0-9.]+(_[A-Za-z0-9]+@v[0-9.]+)?",
 
 
 rule all:
@@ -101,12 +108,27 @@ rule generate_log_file:
         """
 
 
+rule download_model:
+    message:
+        "Downloading the dorado model {wildcards.model}."
+    output:
+        model_dir=directory(os.path.join(DORADO_MODELS_DIR, "{model}")),
+    params:
+        dorado=DORADO_BIN,
+        models_dir=DORADO_MODELS_DIR,
+    shell:
+        """
+        {params.dorado} download --model {wildcards.model} --models-directory {params.models_dir}
+        """
+
+
 rule basecall:
     message:
         "Basecalling the reads using Dorado model {params.model} for the kit {params.kit}."
     input:
         input_dir=INPUT_DIR,
         logfile=LOGFILE,
+        model=MODEL_PATH,
     output:
         directory=directory(TMP_DIR + "/dorado_raw"),
         file=TMP_DIR + "/dorado_raw/basecalled.bam",
@@ -118,7 +140,7 @@ rule basecall:
         dorado=DORADO_BIN,
     shell:
         """
-        {params.dorado} basecaller {params.model} {input.input_dir} --kit-name {params.kit} > {output.file}
+        {params.dorado} basecaller {input.model} {input.input_dir} --kit-name {params.kit} > {output.file}
         """
 
 
@@ -142,7 +164,16 @@ rule demultiplex:
         mkdir -p {output.directory}
         {params.dorado} demux --output-dir {output.directory} --no-classify {input} -t {threads} --emit-fastq
         cd {output.directory}
-        for file in {params.kit}_barcode*.fastq; do mv "$file" "${{file/{params.kit}_barcode/barcode_}}"; done
+        shopt -s nullglob
+        demuxed=({params.kit}_barcode*.fastq)
+        if [ ${{#demuxed[@]}} -eq 0 ]; then
+            echo "ERROR: dorado demux produced no {params.kit}_barcode*.fastq files in $(pwd)." >&2
+            echo "Its output layout has probably changed; the rename below would silently" >&2
+            echo "leave every barcode empty. Found instead:" >&2
+            ls -la >&2
+            exit 1
+        fi
+        for file in "${{demuxed[@]}}"; do mv "$file" "${{file/{params.kit}_barcode/barcode_}}"; done
         for bc in {BARCODES}; do
             if ! [[ -e barcode_$bc.fastq ]]; then
                 touch barcode_$bc.fastq
