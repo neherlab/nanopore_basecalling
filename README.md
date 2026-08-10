@@ -55,6 +55,8 @@ snakemake --profile cluster --config run_dir=<path to your run folder> kit=SQK-R
 ```
 You can monitor the progress of the pipeline in the console output. For a good nanopore run (20Gbp), the pipeline should take around 1h30 to complete.
 
+At the end of a cluster run a CSV appears in `efficiency_reports/`, listing how much of the requested CPU time and memory each rule actually used. It is worth a look if you are adjusting the resources in `cluster/config.v8+.yaml`.
+
 Note that the pipeline must be launched from the login node. Downloading the dorado model is a local rule, and the compute nodes have no internet access.
 
 #### Local execution
