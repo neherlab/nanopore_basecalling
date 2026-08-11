@@ -12,9 +12,22 @@ import pathlib
 SERIES_COLOR = "#2a78d6"
 GRID_COLOR = "#e0e0dd"
 
-# The median/IQR box drawn inside each violin. Thinner and lighter than the seaborn
-# default, which otherwise reads louder than the distribution it sits in.
-INNER_KWS = {"box_width": 2.5, "whis_width": 0.8, "color": "#33322f"}
+# One box per barcode. A 96-barcode kit gets a quarter inch of height per row, which is
+# not enough for a violin to show its shape — the kernel collapses into a sliver — so the
+# distributions are drawn as boxes instead.
+#
+# The whiskers are percentiles rather than seaborn's 1.5*IQR default: a barcode holds tens
+# of thousands of reads, and that rule then marks thousands of them as outliers, which
+# draws as a solid smear across the row and buries the box it is meant to annotate. The
+# 1st and 99th percentiles say the same thing about the tails and stay readable, so the
+# outliers themselves are left off.
+BOX_KWS = {
+    "linewidth": 0.8,
+    "width": 0.65,
+    "whis": (1, 99),
+    "showfliers": False,
+    "medianprops": {"color": "#33322f", "linewidth": 1.2},
+}
 
 
 def barcode_labels(columns):

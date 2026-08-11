@@ -25,17 +25,15 @@ def main():
 
     df = pd.read_csv(args.stats_file, sep="\t")
 
-    # log-length distribution by barcode, normalized
+    # log-length distribution by barcode
     plt.figure(figsize=utils.figsize(len(df.columns)))
-    sns.violinplot(
+    sns.boxplot(
         data=df,
         orient="h",
         log_scale=True,
         color=utils.SERIES_COLOR,
-        linewidth=0.8,
-        inner_kws=utils.INNER_KWS,
+        **utils.BOX_KWS,
     )
-    plt.xscale("log")
     utils.label_and_save(df.columns, args.len_hist, "Length of reads")
 
     # total number of basepairs per barcode

@@ -28,23 +28,11 @@ def main():
     df_std = pd.read_csv(args.stats_file_std, sep="\t")
 
     plt.figure(figsize=utils.figsize(len(df_mean.columns)))
-    sns.violinplot(
-        data=df_mean,
-        orient="h",
-        color=utils.SERIES_COLOR,
-        linewidth=0.8,
-        inner_kws=utils.INNER_KWS,
-    )
+    sns.boxplot(data=df_mean, orient="h", color=utils.SERIES_COLOR, **utils.BOX_KWS)
     utils.label_and_save(df_mean.columns, args.quality_mean_plot, "Mean quality")
 
     plt.figure(figsize=utils.figsize(len(df_std.columns)))
-    sns.violinplot(
-        data=df_std,
-        orient="h",
-        color=utils.SERIES_COLOR,
-        linewidth=0.8,
-        inner_kws=utils.INNER_KWS,
-    )
+    sns.boxplot(data=df_std, orient="h", color=utils.SERIES_COLOR, **utils.BOX_KWS)
     utils.label_and_save(df_std.columns, args.quality_std_plot, "Std of quality")
 
 
