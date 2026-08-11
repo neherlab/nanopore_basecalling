@@ -29,7 +29,9 @@ def figsize(nb_columns):
 
 def barcode_columns(nb_barcodes):
     "Column order of the stats tables: barcode_01..barcode_NN, then unclassified."
-    return [f"barcode_{str(ii).zfill(2)}" for ii in range(1, nb_barcodes + 1)] + ["unclassified"]
+    return [f"barcode_{str(ii).zfill(2)}" for ii in range(1, nb_barcodes + 1)] + [
+        "unclassified"
+    ]
 
 
 def existing_path(value):

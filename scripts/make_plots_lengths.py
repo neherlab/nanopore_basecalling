@@ -5,15 +5,18 @@ import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-
 import utils
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("stats_file", help="the combined read length table")
-    parser.add_argument("--len-hist", required=True, help="length distribution plot to write")
-    parser.add_argument("--bp-per-barcode", required=True, help="total basepairs plot to write")
+    parser.add_argument(
+        "--len-hist", required=True, help="length distribution plot to write"
+    )
+    parser.add_argument(
+        "--bp-per-barcode", required=True, help="total basepairs plot to write"
+    )
     return parser.parse_args()
 
 
@@ -38,7 +41,9 @@ def main():
     # total number of basepairs per barcode
     sum_values = df.sum() / 1e6
     plt.figure(figsize=utils.figsize(len(df.columns)))
-    sns.barplot(x=sum_values.values, y=sum_values.index, orient="h", color=utils.SERIES_COLOR)
+    sns.barplot(
+        x=sum_values.values, y=sum_values.index, orient="h", color=utils.SERIES_COLOR
+    )
     plt.title("Number of basepairs for each barcode")
     utils.label_and_save(df.columns, args.bp_per_barcode, "MBp")
 

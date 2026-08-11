@@ -8,17 +8,24 @@ import argparse
 import os
 
 import pandas as pd
-
 import utils
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stats_dir", help="directory holding the per-barcode .tsv files")
+    parser.add_argument(
+        "stats_dir", help="directory holding the per-barcode .tsv files"
+    )
     parser.add_argument("--lengths", required=True, help="read length table to write")
-    parser.add_argument("--quality-mean", required=True, help="mean quality table to write")
-    parser.add_argument("--quality-std", required=True, help="quality std table to write")
-    parser.add_argument("--nb-barcodes", required=True, type=int, help="number of barcodes of the kit")
+    parser.add_argument(
+        "--quality-mean", required=True, help="mean quality table to write"
+    )
+    parser.add_argument(
+        "--quality-std", required=True, help="quality std table to write"
+    )
+    parser.add_argument(
+        "--nb-barcodes", required=True, type=int, help="number of barcodes of the kit"
+    )
     return parser.parse_args()
 
 

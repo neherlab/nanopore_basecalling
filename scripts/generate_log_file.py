@@ -10,7 +10,12 @@ import utils
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, help="path of the log file to write")
-    parser.add_argument("--dorado-bin", required=True, type=utils.existing_path, help="the dorado binary")
+    parser.add_argument(
+        "--dorado-bin",
+        required=True,
+        type=utils.existing_path,
+        help="the dorado binary",
+    )
     parser.add_argument("--model", required=True, help="name of the basecalling model")
     parser.add_argument("--flow-cell", required=True, help="the flow cell used")
     parser.add_argument("--kit", required=True, help="the nanopore kit used")
