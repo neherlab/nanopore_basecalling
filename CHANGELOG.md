@@ -53,6 +53,10 @@ re-create the conda environment, and check the two breaking changes below.
 - The conda environment lists only direct dependencies instead of a full solve.
 - `snakecommands.py` is replaced by `scripts/`, one plain `argparse` script per step plus a
   shared `scripts/utils.py`. The `click` dependency is gone.
+- The statistics plots are now horizontal — barcodes on the y-axis, the measured quantity on
+  the x-axis — in a single colour. The labels read horizontally instead of rotated, and the
+  figure grows taller with the number of barcodes rather than more crowded, which makes the
+  96-barcode kit legible.
 
 ### Fixed
 

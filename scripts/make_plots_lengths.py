@@ -23,19 +23,24 @@ def main():
     df = pd.read_csv(args.stats_file, sep="\t")
 
     # log-length distribution by barcode, normalized
-    plt.figure(figsize=utils.FIGSIZE)
-    sns.violinplot(data=df, orient="v", log_scale=True)
-    plt.yscale("log")
-    plt.ylabel("Length of reads")
-    utils.label_and_save(df.columns, args.len_hist)
+    plt.figure(figsize=utils.figsize(len(df.columns)))
+    sns.violinplot(
+        data=df,
+        orient="h",
+        log_scale=True,
+        color=utils.SERIES_COLOR,
+        linewidth=0.8,
+        inner_kws=utils.INNER_KWS,
+    )
+    plt.xscale("log")
+    utils.label_and_save(df.columns, args.len_hist, "Length of reads")
 
     # total number of basepairs per barcode
     sum_values = df.sum() / 1e6
-    plt.figure(figsize=utils.FIGSIZE)
-    sns.barplot(x=sum_values.index, y=sum_values.values)
-    plt.ylabel("MBp")
-    plt.title("Number of Basepairs for Each Barcode")
-    utils.label_and_save(df.columns, args.bp_per_barcode)
+    plt.figure(figsize=utils.figsize(len(df.columns)))
+    sns.barplot(x=sum_values.values, y=sum_values.index, orient="h", color=utils.SERIES_COLOR)
+    plt.title("Number of basepairs for each barcode")
+    utils.label_and_save(df.columns, args.bp_per_barcode, "MBp")
 
 
 if __name__ == "__main__":

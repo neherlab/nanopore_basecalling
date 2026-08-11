@@ -24,15 +24,17 @@ def main():
     df_mean = pd.read_csv(args.stats_file_mean, sep="\t")
     df_std = pd.read_csv(args.stats_file_std, sep="\t")
 
-    plt.figure(figsize=utils.FIGSIZE)
-    sns.violinplot(data=df_mean, orient="v")
-    plt.ylabel("Mean quality")
-    utils.label_and_save(df_mean.columns, args.quality_mean_plot)
+    plt.figure(figsize=utils.figsize(len(df_mean.columns)))
+    sns.violinplot(
+        data=df_mean, orient="h", color=utils.SERIES_COLOR, linewidth=0.8, inner_kws=utils.INNER_KWS
+    )
+    utils.label_and_save(df_mean.columns, args.quality_mean_plot, "Mean quality")
 
-    plt.figure(figsize=utils.FIGSIZE)
-    sns.violinplot(data=df_std, orient="v")
-    plt.ylabel("Std of quality")
-    utils.label_and_save(df_std.columns, args.quality_std_plot)
+    plt.figure(figsize=utils.figsize(len(df_std.columns)))
+    sns.violinplot(
+        data=df_std, orient="h", color=utils.SERIES_COLOR, linewidth=0.8, inner_kws=utils.INNER_KWS
+    )
+    utils.label_and_save(df_std.columns, args.quality_std_plot, "Std of quality")
 
 
 if __name__ == "__main__":
