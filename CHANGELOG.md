@@ -51,6 +51,8 @@ re-create the conda environment, and check the two breaking changes below.
   `MM`/`ML` modification tags.
 - `basecall` now requests 16 CPUs rather than 32, pending the efficiency report.
 - The conda environment lists only direct dependencies instead of a full solve.
+- `snakecommands.py` is replaced by `scripts/`, one plain `argparse` script per step plus a
+  shared `scripts/utils.py`. The `click` dependency is gone.
 
 ### Fixed
 

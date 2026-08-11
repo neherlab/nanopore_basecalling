@@ -44,6 +44,6 @@ pipeline (sup model), has been tested
 | `Snakefile` | settings, run-folder layout, log file, cleanup |
 | `rules/basecalling.smk` | model download, basecalling, demultiplexing, compression |
 | `rules/statistics.smk` | per-barcode statistics and plots |
-| `snakecommands.py` | the python steps, as a `click` command group |
+| `scripts/` | the python steps, one script per rule, plus a shared `utils.py` |
 | `config/config.yaml` | all pipeline settings |
 | `cluster/` | the SLURM profile |
