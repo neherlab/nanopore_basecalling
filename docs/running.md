@@ -5,41 +5,83 @@ directory with the `nanopore_basecalling` environment active.
 
 ## 1. Prepare the run folder
 
-A run folder is a directory containing exactly two things to start with:
+A run folder is a directory containing exactly three things to start with:
 
 ```
 my_run/
 ├── raw/            all the .pod5 files from the sequencer
-└── params.tsv      what was on the flow cell
+├── run.yaml        what this run is, and how to basecall it
+└── samples.tsv     which barcode was which sample
 ```
 
 It can live anywhere — it does not have to be inside the pipeline directory. Everything
-the pipeline produces is written into this same folder.
+the pipeline produces is written into this same folder, and `run.yaml` and `samples.tsv`
+stay with the data afterwards. There is a working example of each in `test_data/` to copy.
 
-## 2. Write `params.tsv`
+## 2. Write `run.yaml`
 
-`params.tsv` is a tab-separated file recording what was sequenced. It is copied verbatim
-into the run's log file, so it is what you will consult in a year's time to work out which
-barcode was which sample. The pipeline checks that it exists but does not parse it, so the
-exact columns are up to you — keep the shape below unless you have a reason not to:
+`run.yaml` says what was sequenced. It lives in the run folder rather than in the pipeline
+directory, so that a run carries its own settings: two runs with different kits need no
+juggling, and nothing has to be kept in sync with the repository.
+
+```yaml
+# Required.
+kit: "SQK-RBK114-24"
+flow_cell: "FLO-MIN114"
+
+# Free-form: any key you add is recorded in the run's log file.
+flow_cell_id: "FAX57501"
+minknow_run: "06-09-2023_Valentin-Giacomo"
+research_group: "neher"
+```
+
+`kit` and `flow_cell` are the two required keys, and they have no default — a kit
+inherited from the pipeline defaults would quietly basecall a 96-barcode run as a
+24-barcode one. **The number of barcodes is read from the end of the kit name**, so
+`SQK-RBK114-96` gives 96 barcodes; there is no separate setting.
+
+Everything else is yours. Anything you write here — the operator, the DNA prep, a note
+about a flow cell that misbehaved — ends up in the run's log file untouched, so this is
+the place for whatever you will want to know in a year's time.
+
+`run.yaml` can also override any of the pipeline defaults from
+[§4](#4-check-the-settings) for this one run:
+
+```yaml
+model: "dna_r10.4.1_e8.2_400bps_hac@v5.2.0"
+modifications: true
+mods_model: "dna_r10.4.1_e8.2_400bps_hac@v5.2.0_6mA@v1"
+```
+
+`mods_model` has to match the version of `model`, so if you override one, override the
+other with it — see [choosing a model](#choosing-a-model).
+
+## 3. Write `samples.tsv`
+
+`samples.tsv` records which barcode was which sample. It is copied verbatim into the run's
+log file. The pipeline checks that it exists but does not parse it, so the exact columns
+are up to you — keep the shape below unless you have a reason not to:
 
 ```
-Minknow run:	06-09-2023_Valentin-Giacomo
-research_group:	neher
-flow_cell_ID:	FAX57501
-
 barcode	requester	strain_id
 1	Valentin Druelle	1
 2	Valentin Druelle	2
 3	Valentin Druelle	3
 ```
 
-The columns are separated by **tabs**, not spaces. There is a working example in
-`test_data/params.tsv` to copy.
+The columns are separated by **tabs**, not spaces.
 
-## 3. Check the settings
+## 4. Check the settings
 
-Everything the pipeline needs is in `config/config.yaml`:
+Settings are read in three layers, each one overriding the one before it:
+
+| Layer | Holds | When you touch it |
+|---|---|---|
+| `config/config.yaml` | the toolchain and the defaults | rarely — a lasting change for every run |
+| `<run folder>/run.yaml` | the facts about this run | every run |
+| `--config key=value` | one-off overrides | a single command |
+
+`config/config.yaml` is the first layer:
 
 ```yaml
 dorado_bin: "softwares/dorado-2.1.1-linux-x64/bin/dorado"
@@ -48,22 +90,17 @@ model: "dna_r10.4.1_e8.2_400bps_sup@v5.2.0"
 
 modifications: false
 mods_model: "dna_r10.4.1_e8.2_400bps_sup@v5.2.0_6mA@v1"
-
-kit: "SQK-RBK114-24"
-flow_cell: "FLO-MIN114"
 ```
 
-The one you are most likely to change is `kit`. **The number of barcodes is read from the
-end of the kit name**, so `SQK-RBK114-96` gives 96 barcodes; there is no separate setting.
-
-You can either edit the file, or override a setting for a single run on the command line
-without touching it:
+To try something once without editing anything, override it on the command line:
 
 ```bash
-snakemake --profile cluster --config run_dir=my_run kit=SQK-RBK114-96
+snakemake --profile cluster --config run_dir=my_run model=dna_r10.4.1_e8.2_400bps_hac@v5.2.0
 ```
 
-`run_dir` has no default and must always be given.
+`run_dir` has no default and must always be given. Whatever the three layers come out to
+is written into the run's log file, so a finished run can always be interrogated for the
+settings it actually used.
 
 ### Choosing a model
 
@@ -124,7 +161,7 @@ If you change `model`, change `mods_model` with it: the versions have to match, 
 because the intermediates it would compare against were cleaned up at the end of the run. To
 re-basecall an existing run with a different model, [start over](#starting-over) first.
 
-## 4. Run it
+## 5. Run it
 
 ### On the cluster (recommended)
 
@@ -153,14 +190,21 @@ snakemake --config run_dir=my_run --cores 8
 
 ### With methylation
 
-Modified bases are called by the same pipeline, switched on with one setting:
+Modified bases are called by the same pipeline, switched on with one setting. Put it in
+the run's `run.yaml`, where it is recorded with the run:
+
+```yaml
+modifications: true
+```
+
+or, to try it once, on the command line:
 
 ```bash
 snakemake --profile cluster --config run_dir=my_run modifications=True
 ```
 
-or by setting `modifications: true` in `config/config.yaml`. `mods_model` picks which
-modification is called — 6mA by default; the available models are listed in the
+`mods_model` picks which modification is called — 6mA by default; the available models are
+listed in the
 [dorado documentation](https://software-docs.nanoporetech.com/dorado/latest/models/list/).
 Its version has to match `model`, so change the two together.
 
@@ -168,12 +212,13 @@ This adds `final/bam` to the output. **Those bam files are the real result of a
 modified-base run**: FASTQ has no way to store modification tags, so they exist only in
 the bam. The fastq files are still produced, without the modification information.
 
-## 5. What you get
+## 6. What you get
 
 ```
 my_run/
 ├── raw/
-├── params.tsv
+├── run.yaml
+├── samples.tsv
 ├── final/
 │   ├── fastq/              barcode_01.fastq.gz … unclassified.fastq.gz
 │   └── bam/                only with modifications: barcode_01.bam …
@@ -184,6 +229,10 @@ my_run/
 
 The intermediate files are removed automatically at the end. `log/` is deliberately kept.
 
+`basecalling.log` holds the dorado and pipeline versions, every setting the three layers
+came out to, and `samples.tsv` copied in below them — so the run folder answers on its own
+what was sequenced and how it was called.
+
 If a step fails, snakemake prints the path of the log to look at:
 
 ```
@@ -193,7 +242,8 @@ Error in rule basecall:
 
 ## Starting over
 
-To delete everything a run produced and leave `raw/` and `params.tsv` untouched:
+To delete everything a run produced and leave `raw/`, `run.yaml` and `samples.tsv`
+untouched:
 
 ```bash
 snakemake clean_all --config run_dir=my_run --cores 1

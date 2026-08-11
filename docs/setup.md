@@ -80,6 +80,6 @@ machine without a GPU it will take hours, so use a dry run instead.
 | Path | What |
 |---|---|
 | `softwares/` | dorado and its models. Not in git; you populate it. |
-| `config/config.yaml` | all pipeline settings |
+| `config/config.yaml` | the toolchain and the default settings |
 | `rules/` | the workflow rules, split by topic |
 | `efficiency_reports/` | per-run CPU and memory usage, written after each cluster run |

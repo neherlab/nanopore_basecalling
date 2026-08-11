@@ -8,10 +8,19 @@ is not versioned or released — "Unreleased" means "on `main`".
 ## Unreleased
 
 Modernisation of the toolchain and the workflow. Anyone with an existing checkout should
-re-create the conda environment, and check the two breaking changes below.
+re-create the conda environment, and check the breaking changes below.
 
 ### Breaking
 
+- **`params.tsv` is replaced by two files in the run folder**, `run.yaml` and
+  `samples.tsv`. `run.yaml` holds what was sequenced — `kit` and `flow_cell` are required,
+  anything else you add is free-form — and `samples.tsv` is the barcode → sample table,
+  now a plain table without the old key/value preamble on top. Both are still copied into
+  the run's log file. Existing run folders need their `params.tsv` split in two; see
+  `test_data/` for the shape.
+- **`kit` and `flow_cell` are gone from `config/config.yaml`** and are required in each
+  run's `run.yaml` instead. They are facts about a physical run, not pipeline defaults,
+  and an inherited `kit` would silently basecall a 96-barcode run as a 24-barcode one.
 - Final FASTQ moved from `final/*.fastq.gz` to **`final/fastq/*.fastq.gz`**. Scripts
   pointing at the old location need updating.
 - Modified-base runs are no longer a separate workflow: `snakemake -s methylation.smk …`
@@ -24,9 +33,13 @@ re-create the conda environment, and check the two breaking changes below.
 
 ### Added
 
-- `config/config.yaml` holds every setting — dorado binary, models, kit, flow cell,
-  modifications. Override per-run with `--config key=value` or wholesale with
-  `--configfile`.
+- Settings are read in three layers, each overriding the one before it:
+  `config/config.yaml` (the toolchain and the defaults) → `<run folder>/run.yaml` (this
+  run) → `--config key=value` (this command). A run folder therefore carries its own
+  settings, and two runs with different kits or models need no command-line juggling.
+- The run's log file now records the **merged settings wholesale** instead of a
+  hand-picked list, so every setting is archived — including keys the pipeline does not
+  know about, which makes `run.yaml` a place to note anything worth keeping about a run.
 - Per-step log files in `<run folder>/log/`, kept after the run so a failure can be
   investigated. Snakemake reports the relevant path when a step fails.
 - `modifications` flag, replacing the separate methylation workflow.

@@ -9,8 +9,8 @@ SLURM cluster, but it runs locally too.
 
 - **[Setting up the pipeline](docs/setup.md)** — getting the code and dorado, creating the
   conda environment, checking that it works.
-- **[Preparing and running a run](docs/running.md)** — the run folder and `params.tsv`,
-  the settings, and the commands for the cluster, locally, and with methylation.
+- **[Preparing and running a run](docs/running.md)** — the run folder, `run.yaml` and
+  `samples.tsv`, and the commands for the cluster, locally, and with methylation.
 - **[Changelog](CHANGELOG.md)** — what changed and when.
 
 ## In short
@@ -20,9 +20,9 @@ conda activate nanopore_basecalling
 snakemake --profile cluster --config run_dir=<your run folder>
 ```
 
-where the run folder contains a `raw/` directory of `.pod5` files and a `params.tsv`
-describing the run. Results land in `<run folder>/final/fastq/`, with statistics in
-`statistics/` and per-step logs in `log/`.
+where the run folder contains a `raw/` directory of `.pod5` files, a `run.yaml` saying what
+was sequenced, and a `samples.tsv` saying which barcode was which sample. Results land in
+`<run folder>/final/fastq/`, with statistics in `statistics/` and per-step logs in `log/`.
 
 ## What it does
 
@@ -45,5 +45,5 @@ pipeline (sup model), has been tested
 | `rules/basecalling.smk` | model download, basecalling, demultiplexing, compression |
 | `rules/statistics.smk` | per-barcode statistics and plots |
 | `scripts/` | the python steps, one script per rule, plus a shared `utils.py` |
-| `config/config.yaml` | all pipeline settings |
+| `config/config.yaml` | the toolchain and the default settings, overridden per run by `<run folder>/run.yaml` |
 | `cluster/` | the SLURM profile |
