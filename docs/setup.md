@@ -37,14 +37,20 @@ If you use a different version, update `dorado_bin` in `config/config.yaml` to m
 the version number is part of the path.
 
 **The basecalling models are downloaded for you** the first time you run the pipeline,
-into `softwares/dorado_models/`, and reused afterwards. You only need to fetch them by
+into `softwares/dorado_models/`, and reused afterwards. A run that calls modified bases
+fetches one extra model per modification, the same way. You only need to fetch them by
 hand if you want to work fully offline:
 
 ```bash
+mkdir -p softwares/dorado_models
 ./softwares/dorado-2.1.1-linux-x64/bin/dorado download \
     --model dna_r10.4.1_e8.2_400bps_sup@v5.2.0 \
     --models-directory softwares/dorado_models
 ```
+
+Here the model has to be given by its full name, chemistry and all — `dorado download` has
+no flow cell to work it out from. The directory has to exist first: dorado refuses to
+create it, and says so only on stderr.
 
 > **On the cluster, always launch the pipeline from the login node.** Downloading a model
 > is a local rule, and the compute nodes have no internet access.

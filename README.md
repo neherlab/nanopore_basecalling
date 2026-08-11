@@ -11,6 +11,8 @@ SLURM cluster, but it runs locally too.
   conda environment, checking that it works.
 - **[Preparing and running a run](docs/running.md)** — the run folder, `run.yaml` and
   `samples.tsv`, and the commands for the cluster, locally, and with methylation.
+- **[Choosing a model and the modifications](docs/models.md)** — what each tier of model
+  buys you, and which modified bases can be called together.
 - **[Changelog](CHANGELOG.md)** — what changed and when.
 
 ## In short

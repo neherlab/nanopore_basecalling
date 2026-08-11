@@ -48,13 +48,12 @@ the place for whatever you will want to know in a year's time.
 [§4](#4-check-the-settings) for this one run:
 
 ```yaml
-model: "dna_r10.4.1_e8.2_400bps_hac@v5.2.0"
-modifications: true
-mods_model: "dna_r10.4.1_e8.2_400bps_hac@v5.2.0_6mA@v1"
+model: "hac@v6.0.0"
+modifications: "4mC_5mC,6mA"
 ```
 
-`mods_model` has to match the version of `model`, so if you override one, override the
-other with it — see [choosing a model](#choosing-a-model).
+See [choosing a model and the modifications](#choosing-a-model-and-the-modifications), and
+[docs/models.md](models.md) for the detail behind it.
 
 ## 3. Write `samples.tsv`
 
@@ -86,80 +85,48 @@ Settings are read in three layers, each one overriding the one before it:
 ```yaml
 dorado_bin: "softwares/dorado-2.1.1-linux-x64/bin/dorado"
 models_dir: "softwares/dorado_models"
-model: "dna_r10.4.1_e8.2_400bps_sup@v5.2.0"
-
-modifications: false
-mods_model: "dna_r10.4.1_e8.2_400bps_sup@v5.2.0_6mA@v1"
+model: "sup@v5.2.0"
+modifications: ""
 ```
 
 To try something once without editing anything, override it on the command line:
 
 ```bash
-snakemake --profile cluster --config run_dir=my_run model=dna_r10.4.1_e8.2_400bps_hac@v5.2.0
+snakemake --profile cluster --config run_dir=my_run model=hac@v5.2.0
 ```
 
 `run_dir` has no default and must always be given. Whatever the three layers come out to
 is written into the run's log file, so a finished run can always be interrogated for the
 settings it actually used.
 
-### Choosing a model
+### Choosing a model and the modifications
 
-`model` is the other setting worth thinking about. Dorado ships three tiers of basecalling
-model for a given chemistry, differing in the size and the architecture of the network:
+`model` is the basecalling model, written as `<tier>@<version>` — the chemistry in front of
+it (`dna_r10.4.1_e8.2_400bps_...`) is filled in from the run's flow cell and kit. `sup` is
+the default and the accurate choice; `hac` and `fast` are for testing the pipeline, for
+reads that only need to identify something, and for when GPU time is short.
 
-| Tier | What it is for | Size at `v5.2.0` |
-|---|---|---|
-| `fast` | quick checks and weak hardware | smallest |
-| `hac` | "high accuracy" — the compromise | 8.8 M parameters |
-| `sup` | "super accurate" — **the default here** | 78.7 M parameters |
+`modifications` lists the modified bases to call alongside the sequence, empty for a plain
+run. They are all called in one pass and written into the same bam, and the models that call
+them follow from `model`:
 
-Model names look like `dna_r10.4.1_e8.2_400bps_<tier>@<version>`; the leading part is the
-chemistry and has to match the flow cell. The full list is in the
-[dorado model list](https://software-docs.nanoporetech.com/dorado/latest/models/list/), or
-straight from the binary:
-
-```bash
-DORADO=./softwares/dorado-2.1.1-linux-x64/bin/dorado
-
-$DORADO download --list                        # to read on screen
-$DORADO download --list-yaml | grep 'sup@'     # to filter
+```yaml
+model: "sup@v5.2.0"
+modifications: "4mC_5mC,6mA"
 ```
 
-Use `--list-yaml` for the second one: `--list` writes to stderr and prints **nothing at all**
-when stdout and stderr end up in the same place, so the obvious `--list 2>&1 | grep` comes
-back empty.
+Not every combination is possible — dorado allows only one modification per canonical base,
+and not every model ships every one — but the pipeline checks before it submits anything, so
+a bad combination costs you a second rather than a queued GPU job.
 
-**The tiers are a real accuracy difference, not a rounding error.** Ryan Wick benchmarked
-them on bacterial genomes in
-[Dorado v2 basecalling models](https://rrwick.github.io/2026/06/11/dorado-v2.html)
-(June 2026):
+**[docs/models.md](models.md) has the details**: the accuracy and runtime each tier buys, why
+there is no `sup@v6.0.0`, how to list what a model offers, and how to pin a modification to an
+older version.
 
-| Model | Median read accuracy | Median assembly errors | ~132 Gbp on an H100 |
-|---|---|---|---|
-| `hac@v5.2.0` | Q17.2 (98.09%) | 25.5 | 8h04 |
-| `hac@v6.0.0` | Q18.1 (98.46%) | 11 | 7h48 |
-| `sup@v5.2.0` | Q20.6 (99.13%) | 4 | 21h33 |
-
-So `sup` costs roughly **2.75× the GPU time** and makes about **43% fewer read errors** than
-even the newest `hac`, ending at 4 assembly errors per genome against 11. For de novo
-assembly that is worth the wait, which is why the default here is `sup`. Drop to `hac` or
-`fast` when you are testing the pipeline itself, when the reads only need to identify
-something, or when GPU time is short — see also [running locally](#locally).
-
-Two things from the same post are worth knowing before you reach for `v6.0.0`:
-
-- **There is no `sup@v6.0.0`** — ONT released `hac@v6.0.0` on the argument that a `sup` tier
-  is no longer needed. Wick's numbers do not support that: `sup@v5.2.0` beat `hac@v6.0.0` at
-  both the read and the assembly level. Until a `sup@v6` exists, `sup@v5.2.0` is still the
-  accurate choice.
-- **`hac@v6.0.0` was uneven across species** — around 100 assembly errors on *Klebsiella*
-  genomes, against its median of 11.
-
-If you change `model`, change `mods_model` with it: the versions have to match, so
-`..._hac@v6.0.0` goes with `..._hac@v6.0.0_6mA@v1`. And note that changing the model does
-**not** on its own invalidate a finished run — snakemake will report "nothing to be done",
-because the intermediates it would compare against were cleaned up at the end of the run. To
-re-basecall an existing run with a different model, [start over](#starting-over) first.
+Note that changing the model does **not** on its own invalidate a finished run — snakemake
+will report "nothing to be done", because the intermediates it would compare against were
+cleaned up at the end of the run. To re-basecall an existing run with a different model,
+[start over](#starting-over) first.
 
 ## 5. Run it
 
@@ -190,23 +157,21 @@ snakemake --config run_dir=my_run --cores 8
 
 ### With methylation
 
-Modified bases are called by the same pipeline, switched on with one setting. Put it in
+Modified bases are called by the same pipeline, by listing them in one setting. Put it in
 the run's `run.yaml`, where it is recorded with the run:
 
 ```yaml
-modifications: true
+modifications: "4mC_5mC,6mA"
 ```
 
 or, to try it once, on the command line:
 
 ```bash
-snakemake --profile cluster --config run_dir=my_run modifications=True
+snakemake --profile cluster --config run_dir=my_run modifications=4mC_5mC,6mA
 ```
 
-`mods_model` picks which modification is called — 6mA by default; the available models are
-listed in the
-[dorado documentation](https://software-docs.nanoporetech.com/dorado/latest/models/list/).
-Its version has to match `model`, so change the two together.
+All of them are called in the same pass and written into the same bam — see
+[docs/models.md](models.md#the-modifications) for which can be combined.
 
 This adds `final/bam` to the output. **Those bam files are the real result of a
 modified-base run**: FASTQ has no way to store modification tags, so they exist only in
