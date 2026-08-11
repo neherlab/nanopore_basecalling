@@ -3,11 +3,21 @@
 #
 # This file holds the configuration, the run-folder layout, the log file and the
 # cleanup. The rules themselves live in rules/, split by topic.
+import json
+import shlex
 import time
 import os
 import sys
 
 
+# Settings come in three layers, each one overriding the one before it:
+#
+#   config/config.yaml    the toolchain and the defaults, for every run
+#   <run_dir>/run.yaml    the facts about this run, next to the data
+#   --config key=value    a one-off, for this invocation only
+#
+# The layering is snakemake's own: a `configfile:` directive merges its file into the
+# config and then re-applies whatever came from the command line, so --config always wins.
 configfile: "config/config.yaml"
 
 
@@ -22,6 +32,26 @@ if "run_dir" not in config:
 
 # pass the path to the folder as an argument when calling snakemake: --config run_dir=PATH
 DATA_DIR = os.path.normpath(config["run_dir"])
+
+if not os.path.exists(DATA_DIR):
+    sys.exit(
+        f"Error: The data directory '{DATA_DIR}' does not exist. Make sure you gave the correct path for your folder."
+    )
+
+# The second configuration layer. It lives in the run folder rather than in the
+# repository, so that a run carries its own settings and two runs with different kits
+# need no command-line juggling.
+RUN_CONFIG = os.path.join(DATA_DIR, "run.yaml")
+if not os.path.isfile(RUN_CONFIG):
+    sys.exit(
+        f"Error: The 'run.yaml' file is missing in '{DATA_DIR}'. It records what was "
+        "sequenced — copy 'test_data/run.yaml' and see docs/running.md for what goes in it."
+    )
+
+
+configfile: RUN_CONFIG
+
+
 INPUT_DIR = os.path.join(DATA_DIR, "raw")
 TMP_DIR = os.path.join(DATA_DIR, "tmp")
 OUTPUT_DIR = os.path.join(DATA_DIR, "final")
@@ -52,7 +82,7 @@ DORADO_MODS = config.get("mods_model")
 if MODIFICATIONS and not DORADO_MODS:
     sys.exit(
         "Error: 'modifications' is set but 'mods_model' is empty. Give the name of a "
-        "modified-base model in the config file, e.g. "
+        "modified-base model in config/config.yaml or in the run's run.yaml, e.g. "
         "dna_r10.4.1_e8.2_400bps_sup@v5.2.0_6mA@v1."
     )
 MODS_PATH = os.path.join(DORADO_MODELS_DIR, DORADO_MODS) if MODIFICATIONS else None
@@ -69,8 +99,16 @@ BAM_DIR = os.path.join(OUTPUT_DIR, "bam") if MODIFICATIONS else os.path.join(TMP
 # Sequencing protocol
 # ---------------------------------------------------------------------------
 
+# Facts about the physical run, so they have no default: inheriting a kit from the
+# repository would quietly basecall a 96-barcode run as a 24-barcode one.
+for key in ("kit", "flow_cell"):
+    if not config.get(key):
+        sys.exit(
+            f"Error: '{key}' is missing from '{RUN_CONFIG}'. Both the kit and the flow "
+            "cell have to be stated for every run — see docs/running.md."
+        )
+
 NANOPORE_KIT = config["kit"]
-FLOW_CELL = config["flow_cell"]
 
 # The number of barcodes is taken from the kit name suffix, e.g. SQK-RBK114-24.
 kit_suffix = NANOPORE_KIT.rsplit("-", 1)[-1]
@@ -88,17 +126,13 @@ BARCODES = [str(ii).zfill(2) for ii in range(1, NB_BARCODES + 1)]
 # Input checks
 # ---------------------------------------------------------------------------
 
-# Check that DATA_DIR exists
-if not os.path.exists(DATA_DIR):
+# Check that 'samples.tsv' file exists in DATA_DIR. It is never parsed, only appended to
+# the log file, so its columns are up to whoever writes it.
+SAMPLES_FILE = os.path.join(DATA_DIR, "samples.tsv")
+if not os.path.isfile(SAMPLES_FILE):
     sys.exit(
-        f"Error: The data directory '{DATA_DIR}' does not exist. Make sure you gave the correct path for your folder."
-    )
-
-# Check that 'params.tsv' file exists in DATA_DIR
-params_file = os.path.join(DATA_DIR, "params.tsv")
-if not os.path.isfile(params_file):
-    sys.exit(
-        f"Error: The 'params.tsv' file is missing in '{DATA_DIR}'. Please create your params file and add it to your run folder."
+        f"Error: The 'samples.tsv' file is missing in '{DATA_DIR}'. Please write down "
+        "which barcode was which sample and add it to your run folder."
     )
 
 # Check that 'raw' directory exists in DATA_DIR
@@ -153,19 +187,21 @@ rule all:
     default_target: True
 
 
+# The settings are handed over as a whole rather than one flag at a time, so that the log
+# records every one of them — including keys the pipeline does not know about, which is
+# what makes run.yaml a place to write free-form notes about the run.
 rule generate_log_file:
+    input:
+        run_config=RUN_CONFIG,
+        samples=SAMPLES_FILE,
     output:
         LOGFILE,
     log:
         os.path.join(LOG_DIR, "generate_log_file.log"),
     params:
         dorado=DORADO_BIN,
-        model=DORADO_MODEL,
-        mods_flag=("--mods-model " + DORADO_MODS) if MODIFICATIONS else "",
-        flow_cell=FLOW_CELL,
-        kit=NANOPORE_KIT,
         ex_time=EXEC_TIME,
-        params_file=params_file,
+        settings=shlex.quote(json.dumps(dict(config), default=str)),
     conda:
         "conda_envs/nanopore_basecalling.yml"
     shell:
@@ -173,11 +209,9 @@ rule generate_log_file:
         exec > {log} 2>&1
         python scripts/generate_log_file.py --output {output} \
         --dorado-bin {params.dorado} \
-        --model {params.model} {params.mods_flag} \
-        --flow-cell {params.flow_cell} \
-        --kit {params.kit} \
-        --time {params.ex_time}
-        cat {params.params_file} >> {output}
+        --time {params.ex_time} \
+        --settings {params.settings}
+        cat {input.samples} >> {output}
         """
 
 

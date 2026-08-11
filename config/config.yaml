@@ -1,9 +1,17 @@
-# Default settings for the basecalling pipeline.
+# Default settings for the basecalling pipeline: where the toolchain lives, and how to
+# basecall unless a run says otherwise.
 #
-# Override individual values on the command line:
-#   snakemake --profile cluster --config run_dir=<run> kit=SQK-RBK114-96
-# or point at your own file:
-#   snakemake --profile cluster --config run_dir=<run> --configfile my_config.yaml
+# What a particular run *is* — the kit, the flow cell, what was on it — does not belong
+# here. It goes in `run.yaml` inside the run folder, next to the data. Settings are read
+# in three layers, each overriding the one before it:
+#
+#   config/config.yaml    this file
+#   <run_dir>/run.yaml    the run folder
+#   --config key=value    the command line
+#
+# So a one-off experiment is
+#   snakemake --profile cluster --config run_dir=<run> model=<other model>
+# and a lasting choice for one run is a line in that run's run.yaml.
 
 # Dorado toolchain
 dorado_bin: "softwares/dorado-2.1.1-linux-x64/bin/dorado"
@@ -16,7 +24,3 @@ modifications: false
 # Model used when `modifications` is true. Its version is tied to `model`, so the two
 # have to be changed together.
 mods_model: "dna_r10.4.1_e8.2_400bps_sup@v5.2.0_6mA@v1"
-
-# Sequencing protocol. The number of barcodes is taken from the kit name suffix.
-kit: "SQK-RBK114-24"
-flow_cell: "FLO-MIN114"

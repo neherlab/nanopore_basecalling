@@ -1,10 +1,12 @@
 """Write the log file of a run: the code version, the dorado version and the settings used."""
 
 import argparse
+import json
 import pathlib
 import subprocess
 
 import utils
+import yaml
 
 
 def parse_args():
@@ -16,13 +18,12 @@ def parse_args():
         type=utils.existing_path,
         help="the dorado binary",
     )
-    parser.add_argument("--model", required=True, help="name of the basecalling model")
     parser.add_argument(
-        "--mods-model",
-        help="name of the modified-base model, if modified bases were called",
+        "--settings",
+        required=True,
+        type=json.loads,
+        help="the settings the run was launched with, as json",
     )
-    parser.add_argument("--flow-cell", required=True, help="the flow cell used")
-    parser.add_argument("--kit", required=True, help="the nanopore kit used")
     parser.add_argument("--time", required=True, help="execution time of the run")
     return parser.parse_args()
 
@@ -50,6 +51,11 @@ def main():
         commitID += " (with uncommitted local changes)"
     doradover = capture(f"{args.dorado_bin} -v 2>&1")
 
+    # Everything the run was launched with, defaults and run folder and command line
+    # already merged, written out as it was received. Nothing is picked out by name, so
+    # a setting added to the pipeline lands here without this script being touched.
+    settings = yaml.safe_dump(args.settings, sort_keys=False, default_flow_style=False)
+
     log_text = f"""
 Log-file for the basecalling executed by the Snakemake script.
 Execution time: {args.time}
@@ -57,14 +63,13 @@ Execution time: {args.time}
 The code is stored in the repository: {reporemote}
 The current commit is: {commitID}
 Dorado version: {doradover}
-Dorado model: {args.model}
-Modified bases: {args.mods_model or "not called"}
-Flow cell: {args.flow_cell}
-Nanopore kit: {args.kit}
 Input dir: {data_dir / "raw"}
 Output dir: {data_dir / "final"}
 
-Parameter file:
+Settings:
+
+{settings}
+Samples:
 
 """
 
