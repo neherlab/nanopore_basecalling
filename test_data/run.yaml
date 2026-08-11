@@ -8,8 +8,7 @@ flow_cell_id: "FAX57501"
 minknow_run: "06-09-2023_Valentin-Giacomo"
 research_group: "neher"
 
-# Optional, to override a default from config/config.yaml for this run only. `mods_model`
-# has to match the version of `model`, so the two are changed together:
-# model: "dna_r10.4.1_e8.2_400bps_hac@v5.2.0"
-# modifications: true
-# mods_model: "dna_r10.4.1_e8.2_400bps_hac@v5.2.0_6mA@v1"
+# Optional, to override a default from config/config.yaml for this run only. The models
+# that call the modifications follow from `model`, so there is nothing to keep in step:
+# model: "hac@v6.0.0"
+# modifications: "4mC_5mC,6mA"

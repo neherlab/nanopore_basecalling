@@ -4,6 +4,7 @@
 # This file holds the configuration, the run-folder layout, the log file and the
 # cleanup. The rules themselves live in rules/, split by topic.
 import json
+import re
 import shlex
 import time
 import os
@@ -64,38 +65,6 @@ LOGFILE = os.path.join(DATA_DIR, "basecalling.log")
 
 
 # ---------------------------------------------------------------------------
-# Dorado
-# ---------------------------------------------------------------------------
-
-DORADO_BIN = config["dorado_bin"]
-DORADO_MODELS_DIR = config["models_dir"]
-DORADO_MODEL = config["model"]
-
-# Models are referred to by name and downloaded by the download_model local rule, then
-# passed to dorado as a path. Passing a path (rather than a name) stops dorado from
-# trying to resolve the model over the network, which compute nodes cannot do.
-MODEL_PATH = os.path.join(DORADO_MODELS_DIR, DORADO_MODEL)
-
-# Whether to call modified bases alongside the sequence.
-MODIFICATIONS = bool(config["modifications"])
-DORADO_MODS = config.get("mods_model")
-if MODIFICATIONS and not DORADO_MODS:
-    sys.exit(
-        "Error: 'modifications' is set but 'mods_model' is empty. Give the name of a "
-        "modified-base model in config/config.yaml or in the run's run.yaml, e.g. "
-        "dna_r10.4.1_e8.2_400bps_sup@v5.2.0_6mA@v1."
-    )
-MODS_PATH = os.path.join(DORADO_MODELS_DIR, DORADO_MODS) if MODIFICATIONS else None
-
-# Demultiplexing always writes bam, which is then converted to fastq. With modified
-# bases the bam is a deliverable in its own right — fastq cannot carry the MM/ML tags —
-# so it lives under final/ and survives the clean rule. Without them it is a plain
-# intermediate, and goes to tmp/ where clean removes it.
-FASTQ_DIR = os.path.join(OUTPUT_DIR, "fastq")
-BAM_DIR = os.path.join(OUTPUT_DIR, "bam") if MODIFICATIONS else os.path.join(TMP_DIR, "bam")
-
-
-# ---------------------------------------------------------------------------
 # Sequencing protocol
 # ---------------------------------------------------------------------------
 
@@ -120,6 +89,67 @@ if not kit_suffix.isdigit():
 
 NB_BARCODES = int(kit_suffix)
 BARCODES = [str(ii).zfill(2) for ii in range(1, NB_BARCODES + 1)]
+
+
+# ---------------------------------------------------------------------------
+# Dorado
+# ---------------------------------------------------------------------------
+
+# Comes after the sequencing protocol: a model can be named by its tier alone, and the
+# chemistry that completes it is then read off the flow cell and the kit.
+DORADO_BIN = config["dorado_bin"]
+DORADO_MODELS_DIR = config["models_dir"]
+
+if "mods_model" in config:
+    sys.exit(
+        "Error: 'mods_model' is no longer a setting. Modifications are now listed by name "
+        'in \'modifications\', e.g. modifications: "4mC_5mC,6mA", and the models that call '
+        "them are worked out from 'model'. Drop the 'mods_model' line — see docs/running.md."
+    )
+if isinstance(config.get("modifications"), bool):
+    sys.exit(
+        "Error: 'modifications' is no longer true/false but the list of modifications to "
+        'call, e.g. modifications: "4mC_5mC,6mA". Leave it empty to call none — see '
+        "docs/running.md for the codes."
+    )
+
+# The names dorado is asked for are resolved here, at parse time, so that an unknown
+# modification or a pair it cannot call together stops the run now rather than an hour
+# later inside basecall. scripts/ is on the path only when a script is run by path, so
+# the Snakefile has to put it there itself.
+sys.path.insert(0, os.path.join(workflow.basedir, "scripts"))
+import dorado_models
+
+try:
+    DORADO_MODEL, DORADO_MODS = dorado_models.resolve(
+        DORADO_BIN,
+        config["model"],
+        config.get("modifications"),
+        config["flow_cell"],
+        NANOPORE_KIT,
+    )
+except dorado_models.ModelError as error:
+    sys.exit(f"Error: {error}")
+
+# Models are referred to by name and downloaded by the download_model local rule, then
+# passed to dorado as a path. Passing a path (rather than a name) stops dorado from
+# trying to resolve the model over the network, which compute nodes cannot do.
+MODEL_PATH = os.path.join(DORADO_MODELS_DIR, DORADO_MODEL)
+MODS_PATHS = [os.path.join(DORADO_MODELS_DIR, name) for name in DORADO_MODS]
+
+# Whether modified bases are called alongside the sequence.
+MODIFICATIONS = bool(DORADO_MODS)
+
+# What the settings resolved to, recorded alongside them: the log file dumps the config
+# wholesale, so the derived names are archived without the log script knowing about them.
+config["resolved_models"] = [DORADO_MODEL] + DORADO_MODS
+
+# Demultiplexing always writes bam, which is then converted to fastq. With modified
+# bases the bam is a deliverable in its own right — fastq cannot carry the MM/ML tags —
+# so it lives under final/ and survives the clean rule. Without them it is a plain
+# intermediate, and goes to tmp/ where clean removes it.
+FASTQ_DIR = os.path.join(OUTPUT_DIR, "fastq")
+BAM_DIR = os.path.join(OUTPUT_DIR, "bam") if MODIFICATIONS else os.path.join(TMP_DIR, "bam")
 
 
 # ---------------------------------------------------------------------------
@@ -156,8 +186,12 @@ localrules:
     clean_all,
 
 
+# The only models download_model can be asked for are the ones just resolved, so the
+# constraint is the list itself rather than a pattern to keep in step with dorado's
+# naming — modified-base names carry underscores of their own (..._5mC_5hmC@v2), which
+# is exactly what the pattern this replaces could not match.
 wildcard_constraints:
-    model=r"dna_r[0-9.]+_e[0-9.]+_[0-9]+bps_[a-z]+@v[0-9.]+(_[A-Za-z0-9]+@v[0-9.]+)?",
+    model="|".join(re.escape(name) for name in config["resolved_models"]),
 
 
 include: "rules/basecalling.smk"

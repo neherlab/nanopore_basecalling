@@ -27,9 +27,9 @@ rule basecall:
         input_dir=INPUT_DIR,
         logfile=LOGFILE,
         model=MODEL_PATH,
-        # Only a dependency when modified bases are called, so that download_model is
-        # not asked for a model the run does not need.
-        mods=MODS_PATH if MODIFICATIONS else [],
+        # One per modification the run asks for, and empty when it asks for none, so
+        # download_model is never called for a model the run does not need.
+        mods=MODS_PATHS,
     output:
         file=os.path.join(TMP_DIR, "dorado_raw/basecalled.bam"),
     log:
@@ -40,7 +40,9 @@ rule basecall:
         kit=NANOPORE_KIT,
         model=DORADO_MODEL,
         dorado=DORADO_BIN,
-        mods_flag=("--modified-bases-models " + MODS_PATH) if MODIFICATIONS else "",
+        # Dorado takes the modified-base models as one comma separated list, and writes
+        # every modification it is given into the same bam.
+        mods_flag=("--modified-bases-models " + ",".join(MODS_PATHS)) if MODIFICATIONS else "",
     shell:
         """
         {params.dorado} basecaller {input.model} {input.input_dir} {params.mods_flag} --kit-name {params.kit} > {output.file} 2> {log}
