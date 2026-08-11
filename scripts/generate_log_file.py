@@ -17,6 +17,10 @@ def parse_args():
         help="the dorado binary",
     )
     parser.add_argument("--model", required=True, help="name of the basecalling model")
+    parser.add_argument(
+        "--mods-model",
+        help="name of the modified-base model, if modified bases were called",
+    )
     parser.add_argument("--flow-cell", required=True, help="the flow cell used")
     parser.add_argument("--kit", required=True, help="the nanopore kit used")
     parser.add_argument("--time", required=True, help="execution time of the run")
@@ -54,6 +58,7 @@ The code is stored in the repository: {reporemote}
 The current commit is: {commitID}
 Dorado version: {doradover}
 Dorado model: {args.model}
+Modified bases: {args.mods_model or "not called"}
 Flow cell: {args.flow_cell}
 Nanopore kit: {args.kit}
 Input dir: {data_dir / "raw"}

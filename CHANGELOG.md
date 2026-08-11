@@ -72,6 +72,8 @@ re-create the conda environment, and check the two breaking changes below.
 - `clean_all` did not delete `basecalling.log`, having looked for it in the wrong place.
 - The log file step aborted the whole run when the pipeline was not a git checkout. It now
   records `unknown`, and notes when the working tree had uncommitted changes.
+- `basecalling.log` said nothing about modified bases, so a methylation run and a plain one
+  produced the same log. It now records the modified-base model, or `not called`.
 - The plots are written to the paths the workflow declares, rather than next to their
   input, and their x-axis labels are taken from the data instead of being reconstructed.
 

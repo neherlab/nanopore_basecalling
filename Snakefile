@@ -161,6 +161,7 @@ rule generate_log_file:
     params:
         dorado=DORADO_BIN,
         model=DORADO_MODEL,
+        mods_flag=("--mods-model " + DORADO_MODS) if MODIFICATIONS else "",
         flow_cell=FLOW_CELL,
         kit=NANOPORE_KIT,
         ex_time=EXEC_TIME,
@@ -172,7 +173,7 @@ rule generate_log_file:
         exec > {log} 2>&1
         python scripts/generate_log_file.py --output {output} \
         --dorado-bin {params.dorado} \
-        --model {params.model} \
+        --model {params.model} {params.mods_flag} \
         --flow-cell {params.flow_cell} \
         --kit {params.kit} \
         --time {params.ex_time}
