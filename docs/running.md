@@ -65,6 +65,65 @@ snakemake --profile cluster --config run_dir=my_run kit=SQK-RBK114-96
 
 `run_dir` has no default and must always be given.
 
+### Choosing a model
+
+`model` is the other setting worth thinking about. Dorado ships three tiers of basecalling
+model for a given chemistry, differing in the size and the architecture of the network:
+
+| Tier | What it is for | Size at `v5.2.0` |
+|---|---|---|
+| `fast` | quick checks and weak hardware | smallest |
+| `hac` | "high accuracy" — the compromise | 8.8 M parameters |
+| `sup` | "super accurate" — **the default here** | 78.7 M parameters |
+
+Model names look like `dna_r10.4.1_e8.2_400bps_<tier>@<version>`; the leading part is the
+chemistry and has to match the flow cell. The full list is in the
+[dorado model list](https://software-docs.nanoporetech.com/dorado/latest/models/list/), or
+straight from the binary:
+
+```bash
+DORADO=./softwares/dorado-2.1.1-linux-x64/bin/dorado
+
+$DORADO download --list                        # to read on screen
+$DORADO download --list-yaml | grep 'sup@'     # to filter
+```
+
+Use `--list-yaml` for the second one: `--list` writes to stderr and prints **nothing at all**
+when stdout and stderr end up in the same place, so the obvious `--list 2>&1 | grep` comes
+back empty.
+
+**The tiers are a real accuracy difference, not a rounding error.** Ryan Wick benchmarked
+them on bacterial genomes in
+[Dorado v2 basecalling models](https://rrwick.github.io/2026/06/11/dorado-v2.html)
+(June 2026):
+
+| Model | Median read accuracy | Median assembly errors | ~132 Gbp on an H100 |
+|---|---|---|---|
+| `hac@v5.2.0` | Q17.2 (98.09%) | 25.5 | 8h04 |
+| `hac@v6.0.0` | Q18.1 (98.46%) | 11 | 7h48 |
+| `sup@v5.2.0` | Q20.6 (99.13%) | 4 | 21h33 |
+
+So `sup` costs roughly **2.75× the GPU time** and makes about **43% fewer read errors** than
+even the newest `hac`, ending at 4 assembly errors per genome against 11. For de novo
+assembly that is worth the wait, which is why the default here is `sup`. Drop to `hac` or
+`fast` when you are testing the pipeline itself, when the reads only need to identify
+something, or when GPU time is short — see also [running locally](#locally).
+
+Two things from the same post are worth knowing before you reach for `v6.0.0`:
+
+- **There is no `sup@v6.0.0`** — ONT released `hac@v6.0.0` on the argument that a `sup` tier
+  is no longer needed. Wick's numbers do not support that: `sup@v5.2.0` beat `hac@v6.0.0` at
+  both the read and the assembly level. Until a `sup@v6` exists, `sup@v5.2.0` is still the
+  accurate choice.
+- **`hac@v6.0.0` was uneven across species** — around 100 assembly errors on *Klebsiella*
+  genomes, against its median of 11.
+
+If you change `model`, change `mods_model` with it: the versions have to match, so
+`..._hac@v6.0.0` goes with `..._hac@v6.0.0_6mA@v1`. And note that changing the model does
+**not** on its own invalidate a finished run — snakemake will report "nothing to be done",
+because the intermediates it would compare against were cleaned up at the end of the run. To
+re-basecall an existing run with a different model, [start over](#starting-over) first.
+
 ## 4. Run it
 
 ### On the cluster (recommended)
