@@ -57,9 +57,18 @@ re-create the conda environment and read the breaking changes first.
   `cluster/cluster_config.json` and `cluster/slurm_submit.sh` are gone.
 - Demultiplexing always produces bam, which is then converted to FASTQ. With modifications
   the bam files are kept in `final/bam`, since FASTQ cannot carry the `MM`/`ML` tags.
-- The statistics plots are horizontal box plots — barcodes on the y-axis, one colour, and
-  whiskers at the 1st and 99th percentiles. A 96-barcode kit now grows taller instead of
-  more crowded, and every barcode stays legible.
+- The statistics plots are horizontal — barcodes on the y-axis, one colour, and whiskers at
+  the 1st and 99th percentiles. A 96-barcode kit now grows taller instead of more crowded,
+  and every barcode stays legible.
+- **Read quality is reported per base rather than per read.** `quality_mean.png` and
+  `quality_std.png` are replaced by `quality_hist.png`, a heatmap of the Q-score
+  distribution per barcode, and `low_quality.png`, the percentage of bases below Q20. The
+  old figures averaged Phred scores per read, which overstated accuracy by about 19 Q
+  points — Q43.6 where the true read accuracy was Q24.8 — and hid a distribution that has
+  half its mass on dorado's Q50 cap and so has no meaningful average. `statistics/quality.tsv`
+  and `quality_std.tsv` become `statistics/quality_hist.tsv`, counts per Q score, which is
+  also a few kB instead of a few MB.
+- `biopython` is no longer a dependency: the stats step reads the fastq directly.
 - `basecall` requests 16 CPUs rather than 32, and the conda environment lists only direct
   dependencies.
 

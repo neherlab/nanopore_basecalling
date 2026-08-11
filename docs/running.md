@@ -187,12 +187,26 @@ my_run/
 ├── final/
 │   ├── fastq/              barcode_01.fastq.gz … unclassified.fastq.gz
 │   └── bam/                only with modifications: barcode_01.bam …
-├── statistics/             lengths.tsv, quality.tsv + four plots
+├── statistics/             lengths.tsv, quality_hist.tsv + four plots
 ├── log/                    one log per step, kept even if the run fails
 └── basecalling.log         when it ran, with which versions and settings
 ```
 
 The intermediate files are removed automatically at the end. `log/` is deliberately kept.
+
+The four plots are `len_hist.png` and `bp_per_barcode.png` for the read lengths, and
+`quality_hist.png` and `low_quality.png` for the quality.
+
+**The quality is reported per base, not per read.** `quality_hist.png` is a heatmap: one
+row per barcode, Q score across, colour for the share of that barcode's bases. It is drawn
+that way because the distribution has no useful average — dorado caps per-base quality at
+Q50 and puts about half of all bases there, so a mean or a median says more about the cap
+than about the run. `low_quality.png` reduces the same table to the one number worth
+scanning down a 96-barcode column: the percentage of bases below Q20.
+
+A barcode with fewer than a thousand bases is left blank in both, rather than drawn from
+counting noise — cross-talk barcodes that catch one stray read would otherwise be the
+loudest rows on the figure.
 
 `basecalling.log` holds the dorado and pipeline versions, every setting the three layers
 came out to, and `samples.tsv` copied in below them — so the run folder answers on its own
