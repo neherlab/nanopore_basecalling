@@ -12,6 +12,30 @@ import pathlib
 SERIES_COLOR = "#2a78d6"
 GRID_COLOR = "#e0e0dd"
 
+# Fastq quality characters are Phred+33, so ASCII 33 ('!') to 126 ('~') covers every score
+# a basecaller can emit: 94 bins, whatever the run.
+PHRED_OFFSET = 33
+NB_QSCORES = 94
+
+# "Low quality" for the summary bar. Q20 is one error in a hundred bases, the conventional
+# line between usable and not.
+LOW_QUALITY_MAX = 20
+
+# A barcode with fewer bases than this is left blank in the quality figures rather than
+# drawn. Below a thousand bases a bin holding 1% of them holds fewer than ten, so the row
+# is counting noise, not a distribution — and normalising it per barcode would make the
+# noise as loud as a real result. Cross-talk barcodes that catch a single short read come
+# in around a hundred bases, two orders of magnitude under anything genuine.
+MIN_BASES_PLOTTED = 1000
+
+# The Q-score heatmap saturates here. Dorado caps per-base quality at Q50 and puts about
+# half of all bases there, so a scale running to the true maximum would show one bright
+# column and nothing else; stopping at 3% keeps the Q36-45 hump and the low tail readable.
+# The square root on top of that spreads the low tail, which is where barcodes differ —
+# a log scale spreads it too far and makes a bad barcode look like a good one.
+QSCORE_VMAX = 0.03
+QSCORE_GAMMA = 0.5
+
 # One box per barcode. A 96-barcode kit gets a quarter inch of height per row, which is
 # not enough for a violin to show its shape — the kernel collapses into a sliver — so the
 # distributions are drawn as boxes instead.
@@ -53,6 +77,19 @@ def existing_path(value):
     if not path.exists():
         raise argparse.ArgumentTypeError(f"no such file or directory: {value}")
     return path
+
+
+def density_colormap():
+    """White-to-SERIES_COLOR ramp, for the one figure that encodes a value as colour.
+
+    Every other figure draws one series in one flat colour, since the barcode is already
+    given by the row. The Q-score heatmap is a 2D density and has nothing else to encode
+    the count with, so it gets a scale — built from the same blue, so the two kinds of
+    figure still look like one set.
+    """
+    from matplotlib.colors import LinearSegmentedColormap
+
+    return LinearSegmentedColormap.from_list("density", ["#ffffff", SERIES_COLOR])
 
 
 def label_and_save(columns, output, xlabel):

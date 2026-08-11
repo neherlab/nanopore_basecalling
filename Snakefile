@@ -215,8 +215,8 @@ rule all:
         ),
         plot1=os.path.join(STATISTICS_DIR, "len_hist.png"),
         plot2=os.path.join(STATISTICS_DIR, "bp_per_barcode.png"),
-        plot3=os.path.join(STATISTICS_DIR, "quality_mean.png"),
-        plot4=os.path.join(STATISTICS_DIR, "quality_std.png"),
+        plot3=os.path.join(STATISTICS_DIR, "quality_hist.png"),
+        plot4=os.path.join(STATISTICS_DIR, "low_quality.png"),
         clean=os.path.join(DATA_DIR, ".cleaned_dummy_file.txt"),  # comment for debugging
     default_target: True
 
@@ -259,8 +259,8 @@ rule clean:
         "Cleaning up the output folder."
     input:
         rules.make_plots_lengths.output.len_hist,
-        rules.make_plots_quality.output.quality_mean_plot,
-        rules.make_plots_quality.output.quality_std_plot,
+        rules.make_plots_quality.output.quality_hist_plot,
+        rules.make_plots_quality.output.low_quality_plot,
     output:
         os.path.join(DATA_DIR, ".cleaned_dummy_file.txt"),
     params:

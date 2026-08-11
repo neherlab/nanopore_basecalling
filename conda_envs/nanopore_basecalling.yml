@@ -8,7 +8,6 @@ dependencies:
   # 2.7.0 stopped adding `--ntasks-per-gpu=1` to every GPU job, which used to
   # start one copy of the basecalling job per requested GPU.
   - snakemake-executor-plugin-slurm>=2.7.0
-  - biopython
   - matplotlib
   - numpy
   - pandas
