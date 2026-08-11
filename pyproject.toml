@@ -1,6 +1,9 @@
 [tool.black]
 line-length = 110
-target-version = ["py309","py310", "py311"]
+target-version = ["py311"]
 
 [tool.isort]
 profile = "black"
+# scripts/utils.py is imported as a top-level module, since the scripts are run as
+# `python scripts/<name>.py` rather than as a package.
+known_first_party = ["utils"]

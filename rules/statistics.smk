@@ -16,7 +16,7 @@ rule stats:
         "../conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py generate-stats {input} {output} > {log} 2>&1
+        python scripts/generate_stats.py {input} --output {output} > {log} 2>&1
         """
 
 
@@ -39,7 +39,11 @@ rule combine_stats:
         "../conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py combine-stats {params.stats_dir} {output.output_lengths} {output.output_quality_mean} {output.output_quality_std} {params.nb_barcodes} > {log} 2>&1
+        python scripts/combine_stats.py {params.stats_dir} \
+        --lengths {output.output_lengths} \
+        --quality-mean {output.output_quality_mean} \
+        --quality-std {output.output_quality_std} \
+        --nb-barcodes {params.nb_barcodes} > {log} 2>&1
         """
 
 
@@ -57,7 +61,9 @@ rule make_plots_lengths:
         "../conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py make-plots-lengths {input.stats_file_lengths} {output.len_hist} {output.bp_per_barcode} > {log} 2>&1
+        python scripts/make_plots_lengths.py {input.stats_file_lengths} \
+        --len-hist {output.len_hist} \
+        --bp-per-barcode {output.bp_per_barcode} > {log} 2>&1
         """
 
 
@@ -76,5 +82,8 @@ rule make_plots_quality:
         "../conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python snakecommands.py make-plots-quality {input.stats_file_quality_mean} {input.stats_file_quality_std} {output.quality_mean_plot} {output.quality_std_plot} > {log} 2>&1
+        python scripts/make_plots_quality.py {input.stats_file_quality_mean} \
+        {input.stats_file_quality_std} \
+        --quality-mean-plot {output.quality_mean_plot} \
+        --quality-std-plot {output.quality_std_plot} > {log} 2>&1
         """

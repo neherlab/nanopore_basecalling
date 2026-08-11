@@ -170,12 +170,12 @@ rule generate_log_file:
     shell:
         """
         exec > {log} 2>&1
-        python snakecommands.py generate-log-file {output} \
-        {params.dorado} \
-        {params.model} \
-        {params.flow_cell} \
-        {params.kit} \
-        {params.ex_time}
+        python scripts/generate_log_file.py --output {output} \
+        --dorado-bin {params.dorado} \
+        --model {params.model} \
+        --flow-cell {params.flow_cell} \
+        --kit {params.kit} \
+        --time {params.ex_time}
         cat {params.params_file} >> {output}
         """
 

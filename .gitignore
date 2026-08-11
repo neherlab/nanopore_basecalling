@@ -8,3 +8,4 @@
 /Justfile
 /tmp
 /efficiency_reports
+__pycache__/
