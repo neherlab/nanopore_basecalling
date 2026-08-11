@@ -9,7 +9,6 @@ dependencies:
   # start one copy of the basecalling job per requested GPU.
   - snakemake-executor-plugin-slurm>=2.7.0
   - biopython
-  - click
   - matplotlib
   - numpy
   - pandas
