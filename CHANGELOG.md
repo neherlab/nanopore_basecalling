@@ -1,26 +1,17 @@
 # Changelog
 
-Notable changes to the pipeline. Newest first. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
 ## v1.0 — unreleased
 
-The toolchain, the configuration and the layout rewritten. Snakemake 7 → 9 and dorado
-0.7.0 → 2.1.1. One workflow instead of two, with methylation as a setting rather than a
-separate file. The settings of a run and its sample table moved next to its data, read in
-three layers and recorded wholesale in the run's log, so nothing in that log can go stale.
-Models and modifications are resolved from dorado's own catalogue and checked before any
-job is submitted, so a bad combination costs a second rather than an hour into a GPU job.
+### Overview
 
-The statistics were reworked: quality is now counted **per base** rather than averaged per
-read, which had overstated accuracy by about 19 Q points, and read lengths are summarised
-per barcode, with N50 and a split by read length reported for the first time. Three bugs
-were fixed along the way — demultiplexing produced no output under dorado ≥ 1.2, basecalling
-started one copy per GPU, and empty barcodes wrote invalid bam. There are now per-step logs
-kept after the run, a CPU and memory efficiency report for cluster runs, and `docs/`.
+Update of the toolchain, configuration and pipeline layout:
 
-With an existing checkout, re-create the conda environment and read the breaking changes
-first.
+- Snakemake 7 → 9, dorado 0.7.0 → 2.1.1
+- One workflow instead of two, with methylation as a setting rather than a separate file.
+- The settings of a run and its sample table moved next to its data.
+- Models and modifications are resolved from dorado's own catalogue and checked before any job is submitted.
+- Improvements in the statistics and plots.
+- Various bug fixes and improvements.
 
 ### Breaking
 

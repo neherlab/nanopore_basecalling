@@ -1,7 +1,6 @@
 # Setting up the pipeline
 
-One-time setup. If you are going to run on the cluster, do all of this **on the cluster**,
-in a directory you can get back to (basecalling a full run takes a couple of hours).
+One-time setup. If you are going to run on the cluster, do all of this **on the cluster**.
 
 ## 1. Get the pipeline
 
@@ -36,24 +35,9 @@ You should end up with `softwares/dorado-2.1.1-linux-x64/bin/dorado`. Check it r
 If you use a different version, update `dorado_bin` in `config/config.yaml` to match —
 the version number is part of the path.
 
-**The basecalling models are downloaded for you** the first time you run the pipeline,
-into `softwares/dorado_models/`, and reused afterwards. A run that calls modified bases
-fetches one extra model per modification, the same way. You only need to fetch them by
-hand if you want to work fully offline:
-
-```bash
-mkdir -p softwares/dorado_models
-./softwares/dorado-2.1.1-linux-x64/bin/dorado download \
-    --model dna_r10.4.1_e8.2_400bps_sup@v5.2.0 \
-    --models-directory softwares/dorado_models
-```
-
-Here the model has to be given by its full name, chemistry and all — `dorado download` has
-no flow cell to work it out from. The directory has to exist first: dorado refuses to
-create it, and says so only on stderr.
-
-> **On the cluster, always launch the pipeline from the login node.** Downloading a model
-> is a local rule, and the compute nodes have no internet access.
+> [!IMPORTANT]
+> **On the cluster, always launch the pipeline from the login/vscode node from a `tmux` session.**
+> Login nodes have access to the internet (important for downloading models), and `tmux` keeps the session alive if you disconnect.
 
 ## 3. Create the conda environment
 
@@ -73,19 +57,13 @@ is wired up correctly, without running anything:
 snakemake -n --config run_dir=test_data
 ```
 
-This is a dry run: it prints the jobs it *would* run and exits. You should see a summary
-ending in `total 84`, and no errors. It needs neither a GPU nor the dorado binary, so it
-is a good check that the pipeline is installed correctly.
+This is a dry run: it prints the jobs it *would* run and exits. It needs neither a GPU nor the dorado binary, so it is a good check that the pipeline is installed correctly.
 
 To actually basecall the test data, run it as you would a real run — see
 [Preparing and running a run](running.md). On the cluster it takes a few minutes; on a
 machine without a GPU it will take hours, so use a dry run instead.
 
-## Where things end up
+## 5. What comes next
 
-| Path | What |
-|---|---|
-| `softwares/` | dorado and its models. Not in git; you populate it. |
-| `config/config.yaml` | the toolchain and the default settings |
-| `rules/` | the workflow rules, split by topic |
-| `efficiency_reports/` | per-run CPU and memory usage, written after each cluster run |
+Once this one-time initial setup is done, you can prepare and run a real run — see
+[Preparing and running a run](running.md).

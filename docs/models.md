@@ -1,24 +1,22 @@
 # Choosing a model and the modifications
 
 Two settings decide how the reads are called: `model`, the basecalling model, and
-`modifications`, the modified bases to call alongside the sequence. Both live in
-`config/config.yaml` as defaults and can be overridden per run in `run.yaml` or on the
-command line — see [§4 of the run guide](running.md#4-check-the-settings) for the layering.
+`modifications`, the modified bases to call alongside the sequence. Both should be specified per run in `run.yaml` (see [§4 of the run guide](running.md#4-check-the-settings)).
 
-This page is the long version. The short one: leave `model` at `sup@v5.2.0` unless GPU time
-is short, and list the modifications you want as `modifications: "4mC_5mC,6mA"`.
+In general:
+- leave `model` at `sup@v5.2.0`, the most accurate model for bacterial DNA, unless you are testing the pipeline or have a reason to use a different tier or version.
+- leave `modifications` empty for a plain run, or set it to the modifications you want to call (e.g. `modifications: "6mA"`).
+
+Here are more details on what each setting does, and how to choose them.
 
 ## How a model is named
 
-**Write the model as `<tier>@<version>`**, e.g. `sup@v5.2.0`.
+In the pipeline it is sufficient to specify the model as `<tier>@<version>`, e.g. `sup@v5.2.0`. Alternatively, it is also possible to specify *the full model name*.
 
-A dorado model name is really `<chemistry>_<tier>@<version>` —
-`dna_r10.4.1_e8.2_400bps_sup@v5.2.0`. The chemistry in front is decided by the flow cell and
-the kit, both of which `run.yaml` already states, so the pipeline fills it in for you. A full
-name is still accepted, and is the escape hatch if you ever need one the pipeline cannot
-derive (a kit dorado's catalogue does not list, say).
+A full dorado model name is `<chemistry>_<tier>@<version>` (e.g. `dna_r10.4.1_e8.2_400bps_sup@v5.2.0`).
+The chemistry in front is decided by the flow cell and the kit, both of which `run.yaml` already states, so when not specified the pipeline fills it in for you.
 
-The full list is in the
+The full list of models is in the
 [dorado model list](https://software-docs.nanoporetech.com/dorado/latest/models/list/), or
 straight from the binary:
 
@@ -29,57 +27,28 @@ $DORADO download --list                        # to read on screen
 $DORADO download --list-yaml | grep 'sup@'     # to filter
 ```
 
-Use `--list-yaml` for the second one: `--list` writes to stderr and prints **nothing at all**
-when stdout and stderr end up in the same place, so the obvious `--list 2>&1 | grep` comes
-back empty.
-
 ## The tiers
 
 Dorado ships three tiers of basecalling model for a given chemistry, differing in the size
 and the architecture of the network:
 
-| Tier | What it is for | Size at `v5.2.0` |
-|---|---|---|
-| `fast` | quick checks and weak hardware | smallest |
-| `hac` | "high accuracy" — the compromise | 8.8 M parameters |
-| `sup` | "super accurate" — **the default here** | 78.7 M parameters |
+| Tier   | What it is for                      | Size at `v5.2.0`  |
+| ------ | ----------------------------------- | ----------------- |
+| `fast` | quick checks and weak hardware      | smallest          |
+| `hac`  | "high accuracy" — the compromise    | 8.8 M parameters  |
+| `sup`  | "super accurate" — the default here | 78.7 M parameters |
 
-**The tiers are a real accuracy difference, not a rounding error.** Ryan Wick benchmarked
-them on bacterial genomes in
-[Dorado v2 basecalling models](https://rrwick.github.io/2026/06/11/dorado-v2.html)
-(June 2026):
+There is an excellent comparative benchmark of these models by Ryan Wick: [Dorado v2 basecalling models](https://rrwick.github.io/2026/06/11/dorado-v2.html) (June 2026):
 
-| Model | Median read accuracy | Median assembly errors | ~132 Gbp on an H100 |
-|---|---|---|---|
-| `hac@v5.2.0` | Q17.2 (98.09%) | 25.5 | 8h04 |
-| `hac@v6.0.0` | Q18.1 (98.46%) | 11 | 7h48 |
-| `sup@v5.2.0` | Q20.6 (99.13%) | 4 | 21h33 |
+| Model        | Median read accuracy | Median assembly errors | ~132 Gbp on an H100 |
+| ------------ | -------------------- | ---------------------- | ------------------- |
+| `hac@v6.0.0` | Q18.1 (98.46%)       | 11                     | 7h48                |
+| `sup@v5.2.0` | Q20.6 (99.13%)       | 4                      | 21h33               |
 
-So `sup` costs roughly **2.75× the GPU time** and makes about **43% fewer read errors** than
-even the newest `hac`, ending at 4 assembly errors per genome against 11. For de novo
-assembly that is worth the wait, which is why the default here is `sup`. Drop to `hac` or
-`fast` when you are testing the pipeline itself, when the reads only need to identify
-something, or when GPU time is short — see also
-[running locally](running.md#locally).
+The benchmark revealed that `sup` costs roughly **2.75× the GPU time** but makes about **43% fewer read errors** than `hac`. For this reason we set `sup` as the default model in the pipeline.
 
-Three things are worth knowing before you reach for `v6.0.0` — two from that post, one from
-its follow-up:
-
-- **There is no `sup@v6.0.0`** — ONT released `hac@v6.0.0` on the argument that a `sup` tier
-  is no longer needed. Wick's numbers do not support that: `sup@v5.2.0` beat `hac@v6.0.0` at
-  both the read and the assembly level. Until a `sup@v6` exists, `sup@v5.2.0` is still the
-  accurate choice.
-- **`hac@v6.0.0` was uneven across species** — around 100 assembly errors on *Klebsiella*
-  genomes, against its median of 11.
-- **It is no better at modified bases either.** ONT claimed improvements in all of them; a
-  [follow-up benchmark](https://rrwick.github.io/2026/07/08/dorado-v2-methylation.html)
-  (July 2026) on five bacterial genomes did not find them, and `hac@v6.0.0` came out no
-  better overall than `hac@v5.2.0`.
-
-Note that changing the model does **not** on its own invalidate a finished run — snakemake
-will report "nothing to be done", because the intermediates it would compare against were
-cleaned up at the end of the run. To re-basecall an existing run with a different model,
-[start over](running.md#starting-over) first.
+> [!NOTE]
+> To re-basecall an existing run with a different model, clear all the results first, see [starting over](running.md#starting-over).
 
 ## The modifications
 
@@ -90,15 +59,12 @@ sequence, and empty for a plain run:
 modifications: "4mC_5mC,6mA"
 ```
 
-All of them are called in one pass and written into the same bam. The models that call them
-are worked out from `model`, so there is nothing else to keep in step.
+All of them are called in one pass and written into the same bam.
 
-Two rules decide what is allowed, and the pipeline checks both **before it submits
-anything** — a mistake costs you a second, not a queued GPU job:
+Not all combinations of model and modification are valid. There are two rules:
 
 - **The modification has to exist for the model you chose.** Not every tier and version
-  ships every one: `fast` has none at all, and `4mC_5mC` exists for `hac`/`sup` at `v5.2.0`
-  but not at `v4.3.0`. Ask for one that does not and the error lists the ones that do.
+  ships every one (e.g. `fast` has none at all). You can check [the list of dorado models](https://software-docs.nanoporetech.com/dorado/latest/models/list/).
 - **Only one modification per canonical base.** This is dorado's own rule: two models whose
   motifs overlap on the same base cannot run in one pass. So `4mC_5mC` (on C) and `6mA` (on
   A) go together, while `5mC_5hmC` (C) and `5mCG_5hmCG` (CG) do not.
@@ -113,25 +79,7 @@ $DORADO download --list-structured | grep -A2 'sup@v5.2.0_'
 Each extra modification is another network running beside the basecaller, so it costs GPU
 time and memory; ask for the ones you will actually look at.
 
-By default the current version of each model is used. To pin an older one, append it:
-`modifications: "5mC_5hmC@v1"`.
+A follow-up [methylation benchmark](https://rrwick.github.io/2026/07/08/dorado-v2-methylation.html) by Ryan Wick indicated that `sup@v5.2.0` seems to be a good default model for methylation calls as well.
 
-**The bam files are the real output of a modified-base run.** FASTQ cannot carry the `MM`/`ML`
-tags, so with any modification the per-barcode bam files are kept in `final/bam` rather than
-thrown away with the other intermediates. The FASTQ files are still produced, without the
-modification information.
-
-### Which modifications to call
-
-For bacteria that is `4mC_5mC` and `6mA`. 6mA and 5mC are the common bacterial methylations,
-and 4mC comes along with 5mC in the same model. The other two options on C are for
-eukaryotes, which is why Wick's
-[methylation benchmark](https://rrwick.github.io/2026/07/08/dorado-v2-methylation.html)
-skipped them: 5hmC is rare in bacteria, and `5mCG_5hmCG` only looks at CpG sites.
-
-`sup@v5.2.0` is a good default here too — sticking with it is what that benchmark
-recommends for bacterial genomics — though not a clean sweep. It recovered 93.0 % of a known
-5mC motif against `hac@v5.2.0`'s 96.8 %, while recovering the most 6mA of the three models
-tested. So if a run is specifically about 5mC sensitivity, `hac` is worth a thought. None of
-those numbers rest on ground truth: there is none for these genomes, and the benchmark
-infers quality from how cleanly each position's calls separate into methylated and not.
+> [!NOTE]
+> Remember that modifications are stored in the output `bam` files, as FASTQ cannot carry them.
