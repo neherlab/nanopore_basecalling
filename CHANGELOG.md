@@ -1,13 +1,26 @@
 # Changelog
 
 Notable changes to the pipeline. Newest first. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates before v1.0 are the loose
-notes that preceded it.
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## v1.0 — 2026-08-11
+## v1.0 — unreleased
 
-The toolchain, the configuration and the layout rewritten. With an existing checkout,
-re-create the conda environment and read the breaking changes first.
+The toolchain, the configuration and the layout rewritten. Snakemake 7 → 9 and dorado
+0.7.0 → 2.1.1. One workflow instead of two, with methylation as a setting rather than a
+separate file. The settings of a run and its sample table moved next to its data, read in
+three layers and recorded wholesale in the run's log, so nothing in that log can go stale.
+Models and modifications are resolved from dorado's own catalogue and checked before any
+job is submitted, so a bad combination costs a second rather than an hour into a GPU job.
+
+The statistics were reworked: quality is now counted **per base** rather than averaged per
+read, which had overstated accuracy by about 19 Q points, and read lengths are summarised
+per barcode, with N50 and a split by read length reported for the first time. Three bugs
+were fixed along the way — demultiplexing produced no output under dorado ≥ 1.2, basecalling
+started one copy per GPU, and empty barcodes wrote invalid bam. There are now per-step logs
+kept after the run, a CPU and memory efficiency report for cluster runs, and `docs/`.
+
+With an existing checkout, re-create the conda environment and read the breaking changes
+first.
 
 ### Breaking
 
@@ -17,113 +30,32 @@ re-create the conda environment and read the breaking changes first.
   key/value preamble). `kit` and `flow_cell` are no longer pipeline defaults: an inherited
   kit would quietly basecall a 96-barcode run as a 24-barcode one.
 - **`model` is a tier and `modifications` a list.** `model: "sup@v5.2.0"` — the chemistry in
-  front of it comes from the flow cell and the kit. `mods_model` is gone, and
-  `modifications` now names the modifications to call rather than true/false:
-  `modifications: "4mC_5mC,6mA"`. Both old spellings stop the run with a message saying
-  what to write instead.
+  front of it comes from the flow cell and the kit — and `modifications: "4mC_5mC,6mA"`
+  names the modifications to call rather than true/false. `mods_model` is gone. Both old
+  spellings stop the run with a message saying what to write instead.
 - **The separate methylation workflow is gone.** `snakemake -s methylation.smk …` is the
   `modifications` setting on the one pipeline.
 - **Outputs moved** to `final/fastq/` and `final/bam/`, from `final/*.fastq.gz`,
   `final/fastq_files/` and `final/bam_files/`.
+- **The statistics tables and plots were renamed.** `lengths.tsv` → `read_summary.tsv`, one
+  row per barcode rather than one per read; `quality.tsv` and `quality_std.tsv` →
+  `quality_hist.tsv`, counts per Q score; `quality_mean.png` and `quality_std.png` →
+  `quality_hist.png` and `low_quality.png`.
 - `--config kit=SQK-RBK114-96` replaces `kit96=True`; the barcode count is read off the end
   of the kit name.
-- Snakemake 7 → **9**, dorado 0.7.0 → **2.1.1**, default model `sup@v5.0.0` → `sup@v5.2.0`.
-  The environment must be re-created: Python ≥ 3.11 and
-  `snakemake-executor-plugin-slurm >= 2.7.0`.
+- **The conda environment must be re-created**: Python ≥ 3.11 and
+  `snakemake-executor-plugin-slurm >= 2.7.0`. The default model also moved from
+  `sup@v5.0.0` to `sup@v5.2.0`.
 
-### Added
+## v0.1 — 2026-08-10
 
-- **Several modifications in one run** — `modifications: "4mC_5mC,6mA"` — called in a single
-  pass and written into the same bam.
-- **Models and modifications are checked before any job is submitted**, against dorado's own
-  catalogue: an unknown modification, one the chosen model does not ship, and a pair dorado
-  could not call together (it allows only one per canonical base) all fail in a second
-  rather than an hour into a GPU job.
-- Settings are read in three layers, each overriding the last: `config/config.yaml` →
-  `<run folder>/run.yaml` → `--config key=value`. The run's log file records the merged
-  result wholesale, plus the model names it resolved to, so nothing in it can go stale.
-- `download_model`: models are fetched on first use, on the login node — the compute nodes
-  have no internet.
-- Per-step logs in `<run folder>/log/`, kept after the run so a failure can be investigated.
-- A CPU and memory efficiency report per cluster run, in `efficiency_reports/`.
-- `docs/`: setting up, running a run, and choosing a model and the modifications.
+The pipeline as it was before that rewrite: Snakemake 7, dorado 0.7.0, `params.tsv`, and a
+separate `methylation.smk`. Tagged so a run made with it can still be reproduced.
 
-### Changed
+What it accumulated, from the loose notes that preceded this changelog:
 
-- One workflow instead of two. The rules are split into `rules/basecalling.smk` and
-  `rules/statistics.smk`, and `snakecommands.py` into one `argparse` script per step under
-  `scripts/`. The `click` dependency is gone.
-- The cluster profile moved to the SLURM executor plugin (`cluster/config.v8+.yaml`);
-  `cluster/cluster_config.json` and `cluster/slurm_submit.sh` are gone.
-- Demultiplexing always produces bam, which is then converted to FASTQ. With modifications
-  the bam files are kept in `final/bam`, since FASTQ cannot carry the `MM`/`ML` tags.
-- The statistics plots are horizontal — barcodes on the y-axis, one colour, and whiskers at
-  the 1st and 99th percentiles. A 96-barcode kit now grows taller instead of more crowded,
-  and every barcode stays legible.
-- **Read quality is reported per base rather than per read.** `quality_mean.png` and
-  `quality_std.png` are replaced by `quality_hist.png`, the Q-score distribution of each
-  barcode, and `low_quality.png`, the percentage of bases below Q20. The old figures
-  averaged Phred scores per read, which overstated accuracy by about 19 Q points — Q43.6
-  where the true read accuracy was Q24.8 — and hid a distribution that has half its mass on
-  dorado's Q50 cap and so has no meaningful average. `statistics/quality.tsv` and
-  `quality_std.tsv` become `statistics/quality_hist.tsv`, counts per Q score, which is also
-  a few kB instead of a few MB.
-- **Each barcode now reports two Q scores**, marked on its distribution: the mean of the Q
-  scores, and `-10 log10(avg error rate)`, which converts each score back to an error
-  probability before averaging. The second is the one that says how often the barcode is
-  actually wrong; on the test run they read 43.4 and 22.4.
-- **`statistics/lengths.tsv` is replaced by `read_summary.tsv`**, one row per barcode rather
-  than one row per read: reads, bases, N50, the read length quantiles, and how many reads
-  and how many bases fell into each of `< 1 kb`, `1–10 kb`, `10–50 kb` and `> 50 kb`. Every
-  number is computed exactly in the stats step. The old table was ragged across barcodes and
-  stored as a rectangle padded to the largest one — 2.9 MB of which 1.3 % was data — where
-  this one is a few kB.
-- **N50 is reported** for the first time, marked on `len_hist.png` and written above each
-  row with the read count. It answers a different question from the median read the box
-  already showed, and on the test run it is four times larger: 16 077 against 3 958.
-- **`bp_per_barcode.png` is split by read length.** The bar still totals the barcode's
-  yield, but is divided into the four length classes those bases came from, so two barcodes
-  with similar yields and very different libraries (64 % against 47 % of bases in reads over
-  10 kb) no longer look alike. It also no longer carries a centred title, which overprinted
-  the note in the corner.
-- **The figures leave out barcodes the run did not use**, with a note saying how many. A
-  96-barcode kit carrying three samples was 94 blank rows. The threshold is a thousand
-  bases, so it also covers cross-talk barcodes that caught a single read. The tables still
-  carry every barcode.
-- `docs/plots.md`: what each figure shows and what the reported quantities mean.
-- `biopython` is no longer a dependency: the stats step reads the fastq directly.
-- `basecall` requests 16 CPUs rather than 32, and the conda environment lists only direct
-  dependencies.
-
-### Fixed
-
-- **Demultiplexing produced no output with dorado ≥ 1.2**, which writes a nested MinKNOW
-  tree rather than flat per-barcode files. The rule collapses that tree, and fails loudly
-  rather than silently producing empty barcodes if the layout changes again.
-- **Basecalling ran once per GPU.** Plugin versions before 2.7.0 add `--ntasks-per-gpu=1`
-  to any job requesting GPUs, so asking for 4 started 4 copies writing to the same file.
-- Empty barcodes produced zero-byte `.bam` files, which are not valid bam and broke the
-  conversion step. They are now header-only bam.
-- QoS is passed as a `qos` resource; newer plugin versions reject it inside `slurm_extra`.
-- `clean_all` looked for `basecalling.log` in the wrong place and left it behind.
-- The log step aborted the whole run outside a git checkout; it now records `unknown`, and
-  notes when the working tree had uncommitted changes.
-- The plots are written to the paths the workflow declares, rather than next to their input,
-  and their tick labels come from the data instead of being reconstructed.
-
-## 2026-04-27
-
-- Cluster QoS changed from `gpu6hours` to `a100-6hours`.
-
-## 2024-09-27
-
-- Stayed on dorado 7.0: 8.0 did not work well at the time.
-
-## 2024-09-26
-
-- Updated dorado for the basecalling speed improvements in 0.8.
-- Added checks for a common mistake in the input path.
-
-## 2024-05-24
-
-- Documented methylation basecalling.
+- 2026-04-27 — cluster QoS `gpu6hours` → `a100-6hours`.
+- 2024-09-27 — stayed on dorado 0.7: 0.8 did not work well at the time.
+- 2024-09-26 — updated dorado for the basecalling speed improvements in 0.8, and added
+  checks for a common mistake in the input path.
+- 2024-05-24 — documented methylation basecalling.
