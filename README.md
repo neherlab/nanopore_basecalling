@@ -1,9 +1,9 @@
-# nanopore_basecalling
+# Nanopore basecalling with dorado
 
 Basecalls raw nanopore data (`.pod5`) with [dorado](https://github.com/nanoporetech/dorado),
 splits the reads by barcode, and produces per-barcode `fastq.gz` plus statistics and plots
 for the run. Optionally calls modified bases (methylation) as well. Written for the Scicore
-SLURM cluster, but it runs locally too.
+SLURM cluster (but it runs locally too).
 
 ## Documentation
 
