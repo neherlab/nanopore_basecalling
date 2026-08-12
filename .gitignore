@@ -1,5 +1,6 @@
 /softwares/*
 /.snakemake
+/.ruff_cache
 /dev
 /test_data/*
 !/test_data/raw
