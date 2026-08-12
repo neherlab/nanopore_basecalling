@@ -28,13 +28,11 @@ LOW_QUALITY_MAX = 20
 # hundred bases, two orders of magnitude under anything genuine.
 MIN_BASES_PLOTTED = 1000
 
-# The Q-score heatmap saturates here. Dorado caps per-base quality at Q50 and puts about
-# half of all bases there, so a scale running to the true maximum would show one bright
-# column and nothing else; stopping at 3% keeps the Q36-45 hump and the low tail readable.
-# The square root on top of that spreads the low tail, which is where barcodes differ —
-# a log scale spreads it too far and makes a bad barcode look like a good one.
-QSCORE_VMAX = 0.03
-QSCORE_GAMMA = 0.5
+# The Q-score distribution is the one figure that marks something on top of the series, so
+# it is the one that needs more than SERIES_COLOR: a colour each for the two summaries it
+# reports per barcode. They are only ever drawn as thin lines over the bars.
+MEAN_COLOR = "#d1495b"
+ACCURACY_COLOR = "#1b7f5f"
 
 # One box per barcode. A 96-barcode kit gets a quarter inch of height per row, which is
 # not enough for a violin to show its shape — the kernel collapses into a sliver — so the
@@ -109,19 +107,6 @@ def existing_path(value):
     if not path.exists():
         raise argparse.ArgumentTypeError(f"no such file or directory: {value}")
     return path
-
-
-def density_colormap():
-    """White-to-SERIES_COLOR ramp, for the one figure that encodes a value as colour.
-
-    Every other figure draws one series in one flat colour, since the barcode is already
-    given by the row. The Q-score heatmap is a 2D density and has nothing else to encode
-    the count with, so it gets a scale — built from the same blue, so the two kinds of
-    figure still look like one set.
-    """
-    from matplotlib.colors import LinearSegmentedColormap
-
-    return LinearSegmentedColormap.from_list("density", ["#ffffff", SERIES_COLOR])
 
 
 def label_and_save(columns, output, xlabel, note=None):
