@@ -28,27 +28,54 @@ LOW_QUALITY_MAX = 20
 # hundred bases, two orders of magnitude under anything genuine.
 MIN_BASES_PLOTTED = 1000
 
-# The Q-score distribution is the one figure that marks something on top of the series, so
-# it is the one that needs more than SERIES_COLOR: a colour each for the two summaries it
-# reports per barcode. They are only ever drawn as thin lines over the bars.
+# Colours for what is marked on top of a series. The Q-score distribution reports two
+# summaries per barcode and needs one each; the length distribution marks N50, and takes
+# the same accent as the mean deliberately — no figure draws both.
 MEAN_COLOR = "#d1495b"
 ACCURACY_COLOR = "#1b7f5f"
+N50_COLOR = "#d1495b"
 
-# One box per barcode. A 96-barcode kit gets a quarter inch of height per row, which is
-# not enough for a violin to show its shape — the kernel collapses into a sliver — so the
-# distributions are drawn as boxes instead.
-#
-# The whiskers are percentiles rather than seaborn's 1.5*IQR default: a barcode holds tens
-# of thousands of reads, and that rule then marks thousands of them as outliers, which
-# draws as a solid smear across the row and buries the box it is meant to annotate. The
-# 1st and 99th percentiles say the same thing about the tails and stay readable, so the
-# outliers themselves are left off.
+# Read length classes, as (key, label, lower bound, upper bound), the last open-ended.
+# generate_stats counts with the bounds and names its rows after the key, and the yield
+# figure labels its legend with the label, so the classes are defined once here.
+LENGTH_CLASSES = [
+    ("under_1kb", "< 1 kb", 0, 1_000),
+    ("1_10kb", "1–10 kb", 1_000, 10_000),
+    ("10_50kb", "10–50 kb", 10_000, 50_000),
+    ("over_50kb", "> 50 kb", 50_000, None),
+]
+
+# A figure that writes a header line above every row needs more than the quarter inch
+# `figsize` gives one. Past two dozen barcodes the header drops to x-small, so the row can
+# lose some height with it — otherwise a 96-barcode kit runs to five feet of canvas.
+ROW_HEIGHT = 0.62
+ROW_HEIGHT_DENSE = 0.42
+DENSE_ABOVE = 24
+
+# One box per barcode. A violin was tried first and does not survive the row height — the
+# kernel collapses into a sliver — so the distributions are drawn as boxes instead.
 BOX_KWS = {
-    "linewidth": 0.8,
-    "width": 0.65,
-    "whis": (1, 99),
+    "widths": 0.65,
     "showfliers": False,
+    "patch_artist": True,
+    "boxprops": {"facecolor": SERIES_COLOR, "edgecolor": "#33322f", "linewidth": 0.8},
+    "whiskerprops": {"color": "#33322f", "linewidth": 0.8},
+    "capprops": {"color": "#33322f", "linewidth": 0.8},
     "medianprops": {"color": "#33322f", "linewidth": 1.2},
+}
+
+# The five numbers ax.bxp draws a box from, mapped onto the rows of the summary table.
+# The whiskers are the 1st and 99th percentiles rather than the usual 1.5*IQR: a barcode
+# holds tens of thousands of reads, and that rule marks thousands of them as outliers,
+# which draws as a solid smear across the row and buries the box it annotates. Naming the
+# rows here keeps generate_stats, which writes them, and make_plots_lengths, which reads
+# them, from drifting apart.
+BOX_STATISTICS = {
+    "whislo": "length_p1",
+    "q1": "length_q1",
+    "med": "length_median",
+    "q3": "length_q3",
+    "whishi": "length_p99",
 }
 
 
@@ -57,15 +84,31 @@ def barcode_labels(columns):
     return [column.replace("barcode_", "") for column in columns]
 
 
-def figsize(nb_columns):
+def figsize(nb_columns, row=0.25):
     """Canvas with a fixed width and one row of height per barcode.
 
     The floor only has to leave room for the axes and the labels. It used to be six
     inches, from when every figure carried all 96 rows of the kit; now that the unused
     barcodes are dropped, a three-barcode run would have spread three rows over that and
     drawn boxes two inches tall.
+
+    `row` is the height a row gets. The quarter inch default suits a figure that draws one
+    mark per barcode and nothing else; a figure writing a header line above every row asks
+    for `row_metrics` instead.
     """
-    return (9, max(2.5, 0.25 * nb_columns + 1.5))
+    return (9, max(2.5, row * nb_columns + 1.5))
+
+
+def row_metrics(nb_rows):
+    """Per-row height in inches and the text size that fits in it.
+
+    For the two figures that write a line of numbers above every barcode. Past
+    DENSE_ABOVE rows the header drops a size, so the row can shrink with it.
+    """
+    dense = nb_rows > DENSE_ABOVE
+    return (ROW_HEIGHT_DENSE if dense else ROW_HEIGHT), (
+        "x-small" if dense else "small"
+    )
 
 
 def plotted_columns(totals):
@@ -134,6 +177,7 @@ def label_and_save(columns, output, xlabel, note=None):
     ax.grid(visible=True, axis="x", color=GRID_COLOR, linewidth=0.6)
     ax.grid(visible=False, axis="y")
     sns.despine(ax=ax)
+
     plt.tight_layout()
     plt.savefig(output, facecolor="w", dpi=200)
     plt.close()

@@ -11,7 +11,7 @@ rule stats:
     input:
         input_file=os.path.join(TMP_DIR, "barcoded/{filename}.fastq"),
     output:
-        lengths=os.path.join(TMP_DIR, "stats/lengths/{filename}.tsv"),
+        summary=os.path.join(TMP_DIR, "stats/summary/{filename}.tsv"),
         quality=os.path.join(TMP_DIR, "stats/quality/{filename}.tsv"),
     log:
         os.path.join(LOG_DIR, "stats/{filename}.log"),
@@ -20,7 +20,7 @@ rule stats:
     shell:
         """
         python scripts/generate_stats.py {input.input_file} \
-        --lengths {output.lengths} \
+        --summary {output.summary} \
         --quality {output.quality} > {log} 2>&1
         """
 
@@ -32,20 +32,20 @@ rule combine_stats:
         stat_files=expand(rules.stats.output, filename=["barcode_" + bc for bc in BARCODES]),
         stat_file_unclassified=expand(rules.stats.output, filename="unclassified"),
     output:
-        output_lengths=os.path.join(STATISTICS_DIR, "lengths.tsv"),
+        output_summary=os.path.join(STATISTICS_DIR, "read_summary.tsv"),
         output_quality_hist=os.path.join(STATISTICS_DIR, "quality_hist.tsv"),
     log:
         os.path.join(LOG_DIR, "combine_stats.log"),
     params:
         nb_barcodes=NB_BARCODES,
-        lengths_dir=os.path.join(TMP_DIR, "stats/lengths"),
+        summary_dir=os.path.join(TMP_DIR, "stats/summary"),
         quality_dir=os.path.join(TMP_DIR, "stats/quality"),
     conda:
         "../conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python scripts/combine_stats.py {params.lengths_dir} {params.quality_dir} \
-        --lengths {output.output_lengths} \
+        python scripts/combine_stats.py {params.summary_dir} {params.quality_dir} \
+        --summary {output.output_summary} \
         --quality-hist {output.output_quality_hist} \
         --nb-barcodes {params.nb_barcodes} > {log} 2>&1
         """
@@ -55,7 +55,7 @@ rule make_plots_lengths:
     message:
         "Generating lenghts statistics plots."
     input:
-        stats_file_lengths=rules.combine_stats.output.output_lengths,
+        stats_file_summary=rules.combine_stats.output.output_summary,
     output:
         len_hist=os.path.join(STATISTICS_DIR, "len_hist.png"),
         bp_per_barcode=os.path.join(STATISTICS_DIR, "bp_per_barcode.png"),
@@ -65,7 +65,7 @@ rule make_plots_lengths:
         "../conda_envs/nanopore_basecalling.yml"
     shell:
         """
-        python scripts/make_plots_lengths.py {input.stats_file_lengths} \
+        python scripts/make_plots_lengths.py {input.stats_file_summary} \
         --len-hist {output.len_hist} \
         --bp-per-barcode {output.bp_per_barcode} > {log} 2>&1
         """

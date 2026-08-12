@@ -15,14 +15,6 @@ import pandas as pd
 import seaborn as sns
 import utils
 
-# One stacked row per barcode, each a small histogram of its own, with its two numbers
-# written above it. That needs more than the quarter inch the single-axes figures give a
-# row. Past two dozen barcodes the header drops to x-small, so the row can lose some
-# height with it — otherwise a 96-barcode kit runs to five feet of canvas.
-ROW_HEIGHT = 0.62
-ROW_HEIGHT_DENSE = 0.42
-DENSE_ABOVE = 24
-
 MEAN_LABEL = "mean Q score"
 ACCURACY_LABEL = "-10 log10(avg error rate)"
 
@@ -73,9 +65,7 @@ def plot_distribution(fractions, output, note):
     scores = fractions.index.values
     mean, accuracy = summaries(fractions)
 
-    dense = len(columns) > DENSE_ABOVE
-    text_size = "x-small" if dense else "small"
-    row = ROW_HEIGHT_DENSE if dense else ROW_HEIGHT
+    row, text_size = utils.row_metrics(len(columns))
     height = max(3.0, row * len(columns) + 1.4)
     fig, axes = plt.subplots(
         len(columns), 1, sharex=True, figsize=(9, height), squeeze=False

@@ -1,7 +1,7 @@
 """Combine the per-barcode statistics into one table per quantity.
 
 Reads the two directories the stats step fills — one .tsv per barcode in each — and writes
-the read lengths and the Q-score histogram with one column per barcode.
+the read length summary and the Q-score histogram.
 """
 
 import argparse
@@ -13,11 +13,13 @@ import utils
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("lengths_dir", help="directory holding the per-barcode lengths")
+    parser.add_argument(
+        "summary_dir", help="directory holding the per-barcode length summaries"
+    )
     parser.add_argument(
         "quality_dir", help="directory holding the per-barcode Q-score histograms"
     )
-    parser.add_argument("--lengths", required=True, help="read length table to write")
+    parser.add_argument("--summary", required=True, help="read summary table to write")
     parser.add_argument(
         "--quality-hist", required=True, help="Q-score histogram table to write"
     )
@@ -49,8 +51,15 @@ def main():
     # os.listdir gives no order, so the columns are put back into barcode order here.
     sorted_headers = utils.barcode_columns(args.nb_barcodes)
 
-    lengths = read_columns(args.lengths_dir, "length")
-    lengths[sorted_headers].to_csv(args.lengths, index=False, sep="\t")
+    # Transposed relative to the histogram below: one row per barcode and one column per
+    # statistic. That is the shape you scan looking for the barcode that went wrong, and
+    # the shape samples.tsv already has.
+    # Every statistic is a count or a length, so the table is integer throughout. The cast
+    # is to pandas' nullable integer: a barcode with no reads leaves its quantiles blank,
+    # and plain numpy would turn the whole column to float and write "27981.0".
+    summary = read_columns(args.summary_dir, "value", index="statistic")
+    summary = summary[sorted_headers].astype("Int64")
+    summary.T.to_csv(args.summary, sep="\t", index_label="barcode")
 
     # Every histogram covers the same Q scores, so the counts line up on the score. Scores
     # no barcode reached are dropped off the end, which leaves the table ending at the
