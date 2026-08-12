@@ -93,15 +93,35 @@ def plot_distribution(summary, output, note):
 
 
 def plot_yield(summary, output, note):
-    "One bar per barcode, total megabases. Says whether the pooling was even."
+    """One bar per barcode, split into the length classes the bases came from.
+
+    The total alone says whether the pooling was even; the split says whether a barcode
+    that got its share got it in usable reads. Two barcodes of the same run came out with
+    64 % and 47 % of their bases in reads over 10 kb, which the single bar hid entirely.
+    """
     columns = list(summary.index)
-    values = summary["bases"].astype(float) / 1e6
     plt.figure(figsize=utils.figsize(len(columns)))
-    plt.gca().barh(
-        range(len(columns)), values, height=0.65, color=utils.SERIES_COLOR, linewidth=0
-    )
-    plt.gca().set_ylim(len(columns) - 0.5, -0.5)
-    utils.label_and_save(columns, output, "MBp", note=note)
+    ax = plt.gca()
+
+    left = pd.Series(0.0, index=summary.index)
+    for (key, label, _, _), color in zip(
+        utils.LENGTH_CLASSES, utils.LENGTH_CLASS_COLORS
+    ):
+        values = summary[f"bases_{key}"].astype(float) / 1e6
+        ax.barh(
+            range(len(columns)),
+            values,
+            left=left,
+            height=0.65,
+            color=color,
+            label=label,
+            linewidth=0,
+        )
+        left += values
+    ax.set_ylim(len(columns) - 0.5, -0.5)
+
+    handles, labels = ax.get_legend_handles_labels()
+    utils.label_and_save(columns, output, "MBp", note=note, legend=(handles, labels))
 
 
 def main():

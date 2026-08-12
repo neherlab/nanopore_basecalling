@@ -45,6 +45,11 @@ LENGTH_CLASSES = [
     ("over_50kb", "> 50 kb", 50_000, None),
 ]
 
+# Length class is an ordered quantity, so the segments of the yield bar are a single-hue
+# ramp anchored on SERIES_COLOR rather than four unrelated hues: darker means longer, and
+# the order reads without consulting the legend.
+LENGTH_CLASS_COLORS = ["#bcd7ee", "#7fb0e0", "#2a78d6", "#12457f"]
+
 # A figure that writes a header line above every row needs more than the quarter inch
 # `figsize` gives one. Past two dozen barcodes the header drops to x-small, so the row can
 # lose some height with it — otherwise a 96-barcode kit runs to five feet of canvas.
@@ -152,12 +157,15 @@ def existing_path(value):
     return path
 
 
-def label_and_save(columns, output, xlabel, note=None):
+def label_and_save(columns, output, xlabel, note=None, legend=None):
     """Label the axes, tidy the frame and write the current figure out.
 
     The barcodes go on the y-axis and the measured quantity on the x-axis: every barcode
     then gets its own row, the labels read horizontally instead of rotated, and a 96
     barcode kit makes the figure taller rather than more crowded.
+
+    `legend` is an optional (handles, labels) pair, for the figures that draw more than
+    one series. It goes in the strip above the axes, opposite the note.
 
     matplotlib is imported here rather than at the top of the module, so that the scripts
     which only need the helpers above do not pay for the import.
@@ -178,6 +186,24 @@ def label_and_save(columns, output, xlabel, note=None):
     ax.grid(visible=False, axis="y")
     sns.despine(ax=ax)
 
-    plt.tight_layout()
+    # tight_layout does not account for a legend anchored outside the axes, so the strip
+    # it sits in is reserved by hand — as a fraction of the height, since that height is
+    # set by the number of barcodes.
+    if legend:
+        handles, labels = legend
+        ax.legend(
+            handles,
+            labels,
+            loc="lower left",
+            bbox_to_anchor=(0, 1.02),
+            ncol=len(labels),
+            frameon=False,
+            fontsize="small",
+            borderaxespad=0,
+        )
+        height = plt.gcf().get_size_inches()[1]
+        plt.tight_layout(rect=(0, 0, 1, 1 - 0.28 / height))
+    else:
+        plt.tight_layout()
     plt.savefig(output, facecolor="w", dpi=200)
     plt.close()
