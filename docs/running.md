@@ -187,7 +187,7 @@ my_run/
 ├── final/
 │   ├── fastq/              barcode_01.fastq.gz … unclassified.fastq.gz
 │   └── bam/                only with modifications: barcode_01.bam …
-├── statistics/             lengths.tsv, quality_hist.tsv + four plots
+├── statistics/             read_summary.tsv, quality_hist.tsv + four plots
 ├── log/                    one log per step, kept even if the run fails
 └── basecalling.log         when it ran, with which versions and settings
 ```
@@ -196,6 +196,12 @@ The intermediate files are removed automatically at the end. `log/` is deliberat
 
 The four plots are `len_hist.png` and `bp_per_barcode.png` for the read lengths, and
 `quality_hist.png` and `low_quality.png` for the quality.
+
+**`read_summary.tsv` is one row per barcode** — reads, bases, N50, the read length
+quantiles, and how many reads and bases fell in each length class. `len_hist.png` draws it
+as a box per barcode with N50 marked, and `bp_per_barcode.png` as a bar per barcode split
+into those classes, so a barcode that got its share of the run in short reads is visible
+rather than hidden in the total.
 
 **The quality is reported per base, not per read.** `quality_hist.png` draws each barcode's
 Q-score distribution, with the mean Q score and `-10 log10(avg error rate)` marked on it;

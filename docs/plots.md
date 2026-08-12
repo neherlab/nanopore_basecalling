@@ -4,10 +4,10 @@ Every run writes a `statistics/` folder with two tables and four figures:
 
 ```
 statistics/
-├── lengths.tsv          one row per read, one column per barcode
+├── read_summary.tsv     one row per barcode: counts, N50, quantiles, length classes
 ├── quality_hist.tsv     one row per Q score, one column per barcode
 ├── len_hist.png         read length distribution
-├── bp_per_barcode.png   total yield
+├── bp_per_barcode.png   yield, split by read length
 ├── quality_hist.png     per-base Q score distribution
 └── low_quality.png      share of bases below Q20
 ```
@@ -18,10 +18,25 @@ drawn](#what-is-not-drawn).
 
 ## What is measured
 
-The `stats` step reads each barcode's fastq once and keeps two things.
+The `stats` step reads each barcode's fastq once and keeps two things. Neither is one value
+per read: everything the figures need is a summary or a histogram, and computing it while
+the barcode is being read keeps the tables small however big the run gets.
 
-**Read lengths**, one number per read. `len_hist.png` and `bp_per_barcode.png` are drawn
-from these.
+**A length summary**, one row of `read_summary.tsv`:
+
+| column | what it is |
+|---|---|
+| `reads`, `bases` | how many reads the barcode caught and how many bases they came to |
+| `n50` | half the bases sit in reads at least this long |
+| `length_min`, `length_max` | the shortest and longest read |
+| `length_p1`, `length_q1`, `length_median`, `length_q3`, `length_p99` | the five numbers the box in `len_hist.png` is drawn from |
+| `reads_under_1kb` … `reads_over_50kb` | how many reads fell in each length class |
+| `bases_under_1kb` … `bases_over_50kb` | how many **bases** those reads came to |
+
+The last two rows are both there because they say different things. On a good barcode about
+a fifth of the reads are under 1 kb and they carry about a seventieth of the bases — counting
+reads makes a run look short, counting bases makes it look long, and only having both tells
+you which.
 
 **A Q-score histogram**, one count per Q score — how many bases in this barcode came out at
 Q0, at Q1, and so on. Not a value per read: the quality figures are drawn from this.
@@ -44,6 +59,12 @@ Keeping counts rather than values costs nothing: a barcode's histogram is 94 int
 whatever the size of the run, so `quality_hist.tsv` is a few kB where the per-read table it
 replaced was a few MB.
 
+The lengths went the same way for a different reason. A per-read length table is ragged —
+one barcode gets ten times the reads of another — and stored as a rectangle it is padded out
+to the largest column. On a real run that came to 2.9 MB of which 1.3 % was data. Every
+number the figures need is computed in the same pass instead, exactly, so `read_summary.tsv`
+is a few kB and nothing is approximated.
+
 ## The figures
 
 All four are horizontal — **barcodes down the y-axis, the measured quantity across** — so
@@ -53,33 +74,49 @@ given by the row, so no legend is needed.
 
 ### `len_hist.png` — read lengths
 
-A box per barcode on a log axis. Whiskers are the 1st and 99th percentiles rather than the
-usual 1.5×IQR: a barcode holds tens of thousands of reads, and the IQR rule then marks
-thousands of them as outliers, which draws as a smear across the row.
+A box per barcode on a log axis, with **N50** marked in red and the read count and N50
+written above the row. Whiskers are the 1st and 99th percentiles rather than the usual
+1.5×IQR: a barcode holds tens of thousands of reads, and the IQR rule then marks thousands
+of them as outliers, which draws as a smear across the row.
 
 ```
-        │
-     49 │      ├──────[███████│███████]──────────────┤
-     58 │   ├────────[████│████]────────┤
-   uncl │        ├───────────[██████│███████]───────────┤
+  reads 27,981    N50 16,077
+     49 │      ├──────[███████│███████]────┊─────────┤
+                                           ┊
+  reads 6,558     N50 9,571
+     58 │   ├────────[████│████]───┊────────┤
+                                  ┊
+  reads 135       N50 16,456
+   uncl │      ├──────────[██████│███████]──┊─────────┤
         └──────────────────────────────────────────────────
              10³              10⁴              10⁵
                           Length of reads
 ```
 
-### `bp_per_barcode.png` — yield
+The line inside the box is the **median read** and the red mark is **N50**. They are two
+different questions and usually two very different numbers — see [N50 and the
+median](#n50-and-the-median).
 
-One bar per barcode, total megabases. This is the figure that says whether the pooling was
-even.
+### `bp_per_barcode.png` — yield, split by read length
+
+One bar per barcode, total megabases, divided into the length classes those bases came from.
+The length of the bar says whether the pooling was even; the split says whether a barcode
+that got its share got it in reads worth having.
 
 ```
-     49 │████████████████████████████████████  213
-     58 │█████                                  33
-   uncl │▌                                       1
-        └──────────────────────────────────────────
+        │ ░ < 1 kb   ▒ 1–10 kb   ▓ 10–50 kb   █ > 50 kb
+     49 │░▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓██  213
+     58 │░▒▒▒▒▒▒▒▓▓▓▓▓▓▓                             33
+   uncl │▓                                            1
+        └──────────────────────────────────────────────
           0        50       100       150      200
                             MBp
 ```
+
+Both of those barcodes are usable, and they are not the same library: barcode 49 has 64 % of
+its bases in reads over 10 kb against barcode 58's 47 %. A bar carrying only the total said
+nothing about that. A fat `< 1 kb` segment is the shape to be suspicious of — it is what
+degraded input DNA looks like.
 
 ### `quality_hist.png` — the Q-score distribution
 
@@ -125,6 +162,30 @@ and the conventional line between usable and not. This is the figure to scan dow
               % of bases below Q20
 ```
 
+## N50 and the median
+
+Both are lengths in bases, and they answer different questions:
+
+| | what it is | what it is good for |
+|---|---|---|
+| **median read** | half the reads are shorter than this | how long a typical read is |
+| **N50** | half the **bases** sit in reads at least this long | how long the reads carrying your data are |
+
+N50 is the one quoted when someone asks how long a nanopore run's reads were, and it is
+almost always the larger of the two — long reads carry many more bases each, so they weigh
+more when you count by base than when you count by read. On the cluster test run:
+
+| barcode | median read | N50 |
+|---|---|---|
+| barcode_49 | 3 958 | 16 077 |
+| barcode_58 | 3 055 | 9 571 |
+| unclassified | 4 862 | 16 456 |
+
+A factor of four between them is normal and not a problem. What is worth looking at is a
+barcode whose N50 is much lower than the others on the same run, or one where the two
+numbers are close — that means there are no long reads for the base count to be weighted
+towards.
+
 ## The two numbers on each row
 
 Both come from the same histogram and both are Q scores, so they are directly comparable —
@@ -163,7 +224,7 @@ hundred bases, which is not a distribution. Normalising a hundred bases per barc
 make counting noise as loud as a real result, and those rows were the brightest thing on the
 figure before the threshold existed.
 
-Nothing is dropped from `lengths.tsv` or `quality_hist.tsv`. To find out what a missing
+Nothing is dropped from `read_summary.tsv` or `quality_hist.tsv`. To find out what a missing
 barcode did, read the table.
 
 If no barcode reaches 1000 bases, every one is kept and the note says so, rather than the

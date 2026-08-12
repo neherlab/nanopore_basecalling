@@ -72,6 +72,20 @@ re-create the conda environment and read the breaking changes first.
   scores, and `-10 log10(avg error rate)`, which converts each score back to an error
   probability before averaging. The second is the one that says how often the barcode is
   actually wrong; on the test run they read 43.4 and 22.4.
+- **`statistics/lengths.tsv` is replaced by `read_summary.tsv`**, one row per barcode rather
+  than one row per read: reads, bases, N50, the read length quantiles, and how many reads
+  and how many bases fell into each of `< 1 kb`, `1–10 kb`, `10–50 kb` and `> 50 kb`. Every
+  number is computed exactly in the stats step. The old table was ragged across barcodes and
+  stored as a rectangle padded to the largest one — 2.9 MB of which 1.3 % was data — where
+  this one is a few kB.
+- **N50 is reported** for the first time, marked on `len_hist.png` and written above each
+  row with the read count. It answers a different question from the median read the box
+  already showed, and on the test run it is four times larger: 16 077 against 3 958.
+- **`bp_per_barcode.png` is split by read length.** The bar still totals the barcode's
+  yield, but is divided into the four length classes those bases came from, so two barcodes
+  with similar yields and very different libraries (64 % against 47 % of bases in reads over
+  10 kb) no longer look alike. It also no longer carries a centred title, which overprinted
+  the note in the corner.
 - **The figures leave out barcodes the run did not use**, with a note saying how many. A
   96-barcode kit carrying three samples was 94 blank rows. The threshold is a thousand
   bases, so it also covers cross-talk barcodes that caught a single read. The tables still
