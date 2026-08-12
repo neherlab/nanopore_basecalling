@@ -61,13 +61,22 @@ re-create the conda environment and read the breaking changes first.
   the 1st and 99th percentiles. A 96-barcode kit now grows taller instead of more crowded,
   and every barcode stays legible.
 - **Read quality is reported per base rather than per read.** `quality_mean.png` and
-  `quality_std.png` are replaced by `quality_hist.png`, a heatmap of the Q-score
-  distribution per barcode, and `low_quality.png`, the percentage of bases below Q20. The
-  old figures averaged Phred scores per read, which overstated accuracy by about 19 Q
-  points — Q43.6 where the true read accuracy was Q24.8 — and hid a distribution that has
-  half its mass on dorado's Q50 cap and so has no meaningful average. `statistics/quality.tsv`
-  and `quality_std.tsv` become `statistics/quality_hist.tsv`, counts per Q score, which is
-  also a few kB instead of a few MB.
+  `quality_std.png` are replaced by `quality_hist.png`, the Q-score distribution of each
+  barcode, and `low_quality.png`, the percentage of bases below Q20. The old figures
+  averaged Phred scores per read, which overstated accuracy by about 19 Q points — Q43.6
+  where the true read accuracy was Q24.8 — and hid a distribution that has half its mass on
+  dorado's Q50 cap and so has no meaningful average. `statistics/quality.tsv` and
+  `quality_std.tsv` become `statistics/quality_hist.tsv`, counts per Q score, which is also
+  a few kB instead of a few MB.
+- **Each barcode now reports two Q scores**, marked on its distribution: the mean of the Q
+  scores, and `-10 log10(avg error rate)`, which converts each score back to an error
+  probability before averaging. The second is the one that says how often the barcode is
+  actually wrong; on the test run they read 43.4 and 22.4.
+- **The figures leave out barcodes the run did not use**, with a note saying how many. A
+  96-barcode kit carrying three samples was 94 blank rows. The threshold is a thousand
+  bases, so it also covers cross-talk barcodes that caught a single read. The tables still
+  carry every barcode.
+- `docs/plots.md`: what each figure shows and what the reported quantities mean.
 - `biopython` is no longer a dependency: the stats step reads the fastq directly.
 - `basecall` requests 16 CPUs rather than 32, and the conda environment lists only direct
   dependencies.

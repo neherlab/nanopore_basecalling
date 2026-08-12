@@ -197,16 +197,14 @@ The intermediate files are removed automatically at the end. `log/` is deliberat
 The four plots are `len_hist.png` and `bp_per_barcode.png` for the read lengths, and
 `quality_hist.png` and `low_quality.png` for the quality.
 
-**The quality is reported per base, not per read.** `quality_hist.png` is a heatmap: one
-row per barcode, Q score across, colour for the share of that barcode's bases. It is drawn
-that way because the distribution has no useful average — dorado caps per-base quality at
-Q50 and puts about half of all bases there, so a mean or a median says more about the cap
-than about the run. `low_quality.png` reduces the same table to the one number worth
-scanning down a 96-barcode column: the percentage of bases below Q20.
+**The quality is reported per base, not per read.** `quality_hist.png` draws each barcode's
+Q-score distribution, with the mean Q score and `-10 log10(avg error rate)` marked on it;
+`low_quality.png` reduces the same table to the percentage of bases below Q20. Barcodes
+holding fewer than a thousand bases are left out of the figures, with a note saying how
+many, though they stay in the tables.
 
-A barcode with fewer than a thousand bases is left blank in both, rather than drawn from
-counting noise — cross-talk barcodes that catch one stray read would otherwise be the
-loudest rows on the figure.
+**[docs/plots.md](plots.md) describes all four figures**, what each measured quantity means,
+and why the quality is counted per base rather than averaged per read.
 
 `basecalling.log` holds the dorado and pipeline versions, every setting the three layers
 came out to, and `samples.tsv` copied in below them — so the run folder answers on its own
