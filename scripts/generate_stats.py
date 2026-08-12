@@ -123,13 +123,14 @@ def main():
     # thousands, and even ten million would be 80 MB against the 4 GB the rule asks for.
     with open(args.summary, "w") as summary:
         summary.write("statistic\tvalue\n")
-        for name, value in summarise(np.array(lengths, dtype=np.int64)):
-            summary.write(f"{name}\t{value}\n")
+        summary.writelines(
+            f"{name}\t{value}\n"
+            for name, value in summarise(np.array(lengths, dtype=np.int64))
+        )
 
     with open(args.quality, "w") as quality_file:
         quality_file.write("q\tcount\n")
-        for q, count in enumerate(counts):
-            quality_file.write(f"{q}\t{count}\n")
+        quality_file.writelines(f"{q}\t{count}\n" for q, count in enumerate(counts))
 
 
 if __name__ == "__main__":
