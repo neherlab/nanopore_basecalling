@@ -13,8 +13,8 @@ SLURM cluster, but it runs locally too.
   `samples.tsv`, and the commands for the cluster, locally, and with methylation.
 - **[Choosing a model and the modifications](docs/models.md)** — what each tier of model
   buys you, and which modified bases can be called together.
-- **[The statistics and the figures](docs/plots.md)** — what each plot shows, and what the
-  reported quantities mean.
+- **[What a run produces](docs/results.md)** — the output files, and the tables and plots
+  describing the run.
 - **[Changelog](CHANGELOG.md)** — what changed and when.
 
 ## In short

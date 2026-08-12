@@ -4,7 +4,7 @@ Both are drawn from the Q-score histogram rather than from per-read values. A pe
 mean would be misleading here — dorado caps per-base quality at Q50 and puts about half of
 all bases there, so the distribution is far from symmetric and no single number stands for
 it. What the figures report instead is the distribution itself, with two summaries marked
-on it; see docs/plots.md for what they mean.
+on it; see docs/results.md for what they mean.
 """
 
 import argparse

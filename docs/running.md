@@ -173,55 +173,16 @@ snakemake --profile cluster --config run_dir=my_run modifications=4mC_5mC,6mA
 All of them are called in the same pass and written into the same bam — see
 [docs/models.md](models.md#the-modifications) for which can be combined.
 
-This adds `final/bam` to the output. **Those bam files are the real result of a
-modified-base run**: FASTQ has no way to store modification tags, so they exist only in
-the bam. The fastq files are still produced, without the modification information.
+This adds `final/bam` to the output, and **those bam files are then the real result of the
+run** — see [what a run produces](results.md#the-reads).
 
 ## 6. What you get
 
-```
-my_run/
-├── raw/
-├── run.yaml
-├── samples.tsv
-├── final/
-│   ├── fastq/              barcode_01.fastq.gz … unclassified.fastq.gz
-│   └── bam/                only with modifications: barcode_01.bam …
-├── statistics/             read_summary.tsv, quality_hist.tsv + four plots
-├── log/                    one log per step, kept even if the run fails
-└── basecalling.log         when it ran, with which versions and settings
-```
+The reads land in `<run folder>/final/fastq/`, one gzipped FASTQ per barcode, with tables
+and plots for the run in `statistics/`, a log per step in `log/`, and a record of what was
+run in `basecalling.log`. The intermediates are cleaned up at the end.
 
-The intermediate files are removed automatically at the end. `log/` is deliberately kept.
-
-The four plots are `len_hist.png` and `bp_per_barcode.png` for the read lengths, and
-`quality_hist.png` and `low_quality.png` for the quality.
-
-**`read_summary.tsv` is one row per barcode** — reads, bases, N50, the read length
-quantiles, and how many reads and bases fell in each length class. `len_hist.png` draws it
-as a box per barcode with N50 marked, and `bp_per_barcode.png` as a bar per barcode split
-into those classes, so a barcode that got its share of the run in short reads is visible
-rather than hidden in the total.
-
-**The quality is reported per base, not per read.** `quality_hist.png` draws each barcode's
-Q-score distribution, with the mean Q score and `-10 log10(avg error rate)` marked on it;
-`low_quality.png` reduces the same table to the percentage of bases below Q20. Barcodes
-holding fewer than a thousand bases are left out of the figures, with a note saying how
-many, though they stay in the tables.
-
-**[docs/plots.md](plots.md) describes all four figures**, what each measured quantity means,
-and why the quality is counted per base rather than averaged per read.
-
-`basecalling.log` holds the dorado and pipeline versions, every setting the three layers
-came out to, and `samples.tsv` copied in below them — so the run folder answers on its own
-what was sequenced and how it was called.
-
-If a step fails, snakemake prints the path of the log to look at:
-
-```
-Error in rule basecall:
-    log: my_run/log/basecall.log (check log file(s) for error details)
-```
+**[What a run produces](results.md)** walks through all of it.
 
 ## Starting over
 
