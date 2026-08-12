@@ -62,7 +62,8 @@ assembly that is worth the wait, which is why the default here is `sup`. Drop to
 something, or when GPU time is short — see also
 [running locally](running.md#locally).
 
-Two things from the same post are worth knowing before you reach for `v6.0.0`:
+Three things are worth knowing before you reach for `v6.0.0` — two from that post, one from
+its follow-up:
 
 - **There is no `sup@v6.0.0`** — ONT released `hac@v6.0.0` on the argument that a `sup` tier
   is no longer needed. Wick's numbers do not support that: `sup@v5.2.0` beat `hac@v6.0.0` at
@@ -70,6 +71,10 @@ Two things from the same post are worth knowing before you reach for `v6.0.0`:
   accurate choice.
 - **`hac@v6.0.0` was uneven across species** — around 100 assembly errors on *Klebsiella*
   genomes, against its median of 11.
+- **It is no better at modified bases either.** ONT claimed improvements in all of them; a
+  [follow-up benchmark](https://rrwick.github.io/2026/07/08/dorado-v2-methylation.html)
+  (July 2026) on five bacterial genomes did not find them, and `hac@v6.0.0` came out no
+  better overall than `hac@v5.2.0`.
 
 Note that changing the model does **not** on its own invalidate a finished run — snakemake
 will report "nothing to be done", because the intermediates it would compare against were
@@ -115,3 +120,18 @@ By default the current version of each model is used. To pin an older one, appen
 tags, so with any modification the per-barcode bam files are kept in `final/bam` rather than
 thrown away with the other intermediates. The FASTQ files are still produced, without the
 modification information.
+
+### Which modifications to call
+
+For bacteria that is `4mC_5mC` and `6mA`. 6mA and 5mC are the common bacterial methylations,
+and 4mC comes along with 5mC in the same model. The other two options on C are for
+eukaryotes, which is why Wick's
+[methylation benchmark](https://rrwick.github.io/2026/07/08/dorado-v2-methylation.html)
+skipped them: 5hmC is rare in bacteria, and `5mCG_5hmCG` only looks at CpG sites.
+
+`sup@v5.2.0` is a good default here too — sticking with it is what that benchmark
+recommends for bacterial genomics — though not a clean sweep. It recovered 93.0 % of a known
+5mC motif against `hac@v5.2.0`'s 96.8 %, while recovering the most 6mA of the three models
+tested. So if a run is specifically about 5mC sensitivity, `hac` is worth a thought. None of
+those numbers rest on ground truth: there is none for these genomes, and the benchmark
+infers quality from how cleanly each position's calls separate into methylated and not.
