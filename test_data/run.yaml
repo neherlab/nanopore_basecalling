@@ -1,0 +1,14 @@
+# What was sequenced. `kit` and `flow_cell` are required — the number of barcodes is
+# read from the end of the kit name.
+kit: "SQK-RBK114-24"
+flow_cell: "FLO-MIN114"
+
+# Free-form: any key you add here is recorded in the run's log file.
+flow_cell_id: "FAX57501"
+minknow_run: "06-09-2023_Valentin-Giacomo"
+research_group: "neher"
+
+# Optional, to override a default from config/config.yaml for this run only. The models
+# that call the modifications follow from `model`, so there is nothing to keep in step:
+# model: "hac@v6.0.0"
+# modifications: "4mC_5mC,6mA"

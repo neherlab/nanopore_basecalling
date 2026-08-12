@@ -1,0 +1,48 @@
+executor: slurm
+jobs: 25
+latency-wait: 90
+
+# After every run, query sacct and write per-rule CPU/memory efficiency to
+# efficiency_reports/efficiency_report_<run uuid>.csv. Use it to check whether the
+# requests below are anywhere near what the rules actually use.
+slurm-efficiency-report: True
+slurm-efficiency-report-path: "efficiency_reports"
+
+software-deployment-method: conda
+rerun-incomplete: True
+printshellcmds: False
+keep-going: False
+
+# `dorado basecaller` has no thread option, so this does not reach it: it only sizes
+# the allocation (--cpus-per-task) that dorado then finds. Dorado still needs CPUs for
+# pod5 decoding, trimming and BAM writing alongside the GPUs. 16 is a guess inherited
+# from the pre-migration config (which asked for 32) and wants checking against the
+# efficiency report.
+set-threads:
+  basecall: 16
+
+default-resources:
+  runtime: 29
+  mem_mb: 4000
+  qos: "30min"
+
+# Do not add a `tasks` resource to a rule that also asks for GPUs: the slurm
+# executor turns it into `--ntasks-per-gpu`, which starts one copy of the job
+# per GPU. Basecalling wants a single task holding all four GPUs.
+set-resources:
+  basecall:
+    runtime: 355
+    mem_mb: 100000
+    nodes: 1
+    slurm_partition: "a100"
+    gres: "gpu:4"
+    qos: "a100-6hours"
+  demultiplex:
+    runtime: 30
+    mem_mb: 16000
+  combine_stats:
+    mem_mb: 16000
+  make_plots_lengths:
+    mem_mb: 16000
+  make_plots_quality:
+    mem_mb: 16000
