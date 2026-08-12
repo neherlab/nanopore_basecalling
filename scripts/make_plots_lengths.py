@@ -25,6 +25,10 @@ def main():
 
     df = pd.read_csv(args.stats_file, sep="\t")
 
+    # The barcodes the kit offered and the run did not use are left out of the figures.
+    columns, note = utils.plotted_columns(df.sum())
+    df = df[columns]
+
     # log-length distribution by barcode
     plt.figure(figsize=utils.figsize(len(df.columns)))
     sns.boxplot(
@@ -34,7 +38,7 @@ def main():
         color=utils.SERIES_COLOR,
         **utils.BOX_KWS,
     )
-    utils.label_and_save(df.columns, args.len_hist, "Length of reads")
+    utils.label_and_save(df.columns, args.len_hist, "Length of reads", note=note)
 
     # total number of basepairs per barcode
     sum_values = df.sum() / 1e6
@@ -43,7 +47,7 @@ def main():
         x=sum_values.values, y=sum_values.index, orient="h", color=utils.SERIES_COLOR
     )
     plt.title("Number of basepairs for each barcode")
-    utils.label_and_save(df.columns, args.bp_per_barcode, "MBp")
+    utils.label_and_save(df.columns, args.bp_per_barcode, "MBp", note=note)
 
 
 if __name__ == "__main__":

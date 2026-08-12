@@ -21,11 +21,11 @@ NB_QSCORES = 94
 # line between usable and not.
 LOW_QUALITY_MAX = 20
 
-# A barcode with fewer bases than this is left blank in the quality figures rather than
-# drawn. Below a thousand bases a bin holding 1% of them holds fewer than ten, so the row
-# is counting noise, not a distribution — and normalising it per barcode would make the
-# noise as loud as a real result. Cross-talk barcodes that catch a single short read come
-# in around a hundred bases, two orders of magnitude under anything genuine.
+# A barcode with fewer bases than this is left out of the figures rather than drawn. Below
+# a thousand bases a bin holding 1% of them holds fewer than ten, so the row is counting
+# noise, not a distribution — and normalising it per barcode would make the noise as loud
+# as a real result. Cross-talk barcodes that catch a single short read come in around a
+# hundred bases, two orders of magnitude under anything genuine.
 MIN_BASES_PLOTTED = 1000
 
 # The Q-score heatmap saturates here. Dorado caps per-base quality at Q50 and puts about
@@ -60,8 +60,40 @@ def barcode_labels(columns):
 
 
 def figsize(nb_columns):
-    "Canvas with a fixed width and one row of height per barcode."
-    return (9, max(6, 0.25 * nb_columns + 1.5))
+    """Canvas with a fixed width and one row of height per barcode.
+
+    The floor only has to leave room for the axes and the labels. It used to be six
+    inches, from when every figure carried all 96 rows of the kit; now that the unused
+    barcodes are dropped, a three-barcode run would have spread three rows over that and
+    drawn boxes two inches tall.
+    """
+    return (9, max(2.5, 0.25 * nb_columns + 1.5))
+
+
+def plotted_columns(totals):
+    """The barcodes worth drawing, and a note saying how many were left out.
+
+    `rule all` expands over every barcode the kit offers, so the tables always carry all
+    of them and most runs use a fraction. Drawing the rest costs most of the canvas: a
+    96-barcode kit with three samples on it is 94 blank rows and three of data. They are
+    dropped from the figures — never from the tables, which stay the full record — and the
+    note says so, since a figure that quietly omits barcodes is worse than a crowded one.
+
+    Barcodes that caught a read or two are dropped by the same threshold as the ones that
+    caught nothing: a hundred bases is not a distribution either.
+    """
+    kept = [column for column in totals.index if totals[column] >= MIN_BASES_PLOTTED]
+    # Nothing reached the threshold — a run that failed outright. Keep every barcode, so
+    # the figure shows that rather than coming out empty.
+    if not kept:
+        return list(totals.index), "no barcode reached 1 kb: showing all"
+    dropped = len(totals) - len(kept)
+    if not dropped:
+        return kept, None
+    return (
+        kept,
+        f"{len(kept)} of {len(totals)} barcodes; {dropped} under 1 kb not shown",
+    )
 
 
 def barcode_columns(nb_barcodes):
@@ -92,7 +124,7 @@ def density_colormap():
     return LinearSegmentedColormap.from_list("density", ["#ffffff", SERIES_COLOR])
 
 
-def label_and_save(columns, output, xlabel):
+def label_and_save(columns, output, xlabel, note=None):
     """Label the axes, tidy the frame and write the current figure out.
 
     The barcodes go on the y-axis and the measured quantity on the x-axis: every barcode
@@ -109,6 +141,9 @@ def label_and_save(columns, output, xlabel):
     ax.set_yticks(range(len(columns)), barcode_labels(columns), fontsize="small")
     ax.set_ylabel("Barcode")
     ax.set_xlabel(xlabel)
+    # loc="right", so a figure that already has a centred title keeps it.
+    if note:
+        ax.set_title(note, fontsize="small", color="#666666", loc="right")
     # A hairline grid along the value axis only, kept behind the marks.
     ax.set_axisbelow(True)
     ax.grid(visible=True, axis="x", color=GRID_COLOR, linewidth=0.6)

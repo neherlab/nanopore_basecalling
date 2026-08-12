@@ -33,12 +33,12 @@ def main():
 
     counts = pd.read_csv(args.quality_hist_file, sep="\t", index_col="q")
 
-    # Each barcode is normalised by its own total, so barcodes with very different yields
-    # are still comparable. Barcodes with too few bases to have a distribution at all are
-    # left as NaN, which both figures draw as a blank row rather than as noise.
-    totals = counts.sum()
-    usable = totals >= utils.MIN_BASES_PLOTTED
-    fractions = counts.div(totals.where(usable), axis=1)
+    # Barcodes with too few bases to have a distribution are dropped rather than drawn as
+    # noise. What is left is normalised by its own total, so barcodes with very different
+    # yields are still comparable.
+    columns, note = utils.plotted_columns(counts.sum())
+    counts = counts[columns]
+    fractions = counts.div(counts.sum(), axis=1)
 
     # Q score on the x-axis, barcodes on the y-axis, colour for the density. Cell centres
     # sit at 0..n-1 so that label_and_save can put the barcode names on the rows the same
@@ -63,12 +63,15 @@ def main():
     # claiming the colour means exactly 3%.
     bar.set_ticks([0, 0.005, 0.01, 0.02, utils.QSCORE_VMAX])
     bar.set_ticklabels(["0", "0.5%", "1%", "2%", f"≥{utils.QSCORE_VMAX:.0%}"])
-    utils.label_and_save(counts.columns, args.quality_hist_plot, "Q score of the base")
+    utils.label_and_save(
+        counts.columns, args.quality_hist_plot, "Q score of the base", note=note
+    )
 
     # The same table read as one number per barcode: how much of it is below the usable
     # line. This is what to scan down when looking for a barcode that went wrong.
-    # min_count keeps a blanked barcode as NaN, which draws no bar. Without it the sum of
-    # nothing would be 0, and an unmeasured barcode would look like a flawless one.
+    # min_count matters only for a run where nothing reached the threshold and every
+    # barcode is kept: without it the sum of nothing would be 0, and an unmeasured barcode
+    # would draw as a flawless one.
     low = fractions.loc[: utils.LOW_QUALITY_MAX - 1].sum(min_count=1) * 100
     plt.figure(figsize=utils.figsize(len(counts.columns)))
     sns.barplot(x=low.values, y=low.index, orient="h", color=utils.SERIES_COLOR)
@@ -77,6 +80,7 @@ def main():
         counts.columns,
         args.low_quality_plot,
         f"% of bases below Q{utils.LOW_QUALITY_MAX}",
+        note=note,
     )
 
 
