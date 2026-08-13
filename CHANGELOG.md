@@ -11,8 +11,7 @@ Update of the toolchain, configuration and pipeline layout:
 - The settings of a run and its sample table moved next to its data.
 - Models and modifications are resolved from dorado's own catalogue and checked before any job is submitted.
 - Improvements in the statistics and plots.
-- Basecalling asks the cluster for two GPUs and four hours instead of four GPUs and six,
-  so the job is scheduled sooner; a run that outgrows the shorter limit is retried once.
+- Change in cluster resources requirement (less gpu and shorter default job duration).
 - Various bug fixes and improvements.
 
 ### Breaking
