@@ -38,7 +38,8 @@ set-resources:
     gres: "gpu:4"
     qos: "a100-6hours"
   demultiplex:
-    runtime: 30
+    # No `runtime`: the default 29 above is deliberately one minute under the 30min QoS
+    # wall, which the 30 that used to be here was not.
     mem_mb: 16000
   combine_stats:
     mem_mb: 16000
