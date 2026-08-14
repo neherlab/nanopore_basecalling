@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **increased `demultiplex` runtime** to 6 hours, to avoid timeout.
+- **Re-running a partially completed run no longer re-basecalls it**, which the timestamp in
+  `basecalling.log` used to force.
+
 ## v1.0 — 2026-08-13
 
 ### Overview

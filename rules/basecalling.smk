@@ -25,7 +25,6 @@ rule basecall:
         "Basecalling the reads using Dorado model {params.model} for the kit {params.kit}."
     input:
         input_dir=INPUT_DIR,
-        logfile=LOGFILE,
         model=MODEL_PATH,
         # One per modification the run asks for, and empty when it asks for none, so
         # download_model is never called for a model the run does not need.

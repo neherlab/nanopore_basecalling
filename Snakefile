@@ -205,18 +205,19 @@ include: "rules/statistics.smk"
 
 rule all:
     input:
-        fastq=expand(os.path.join(FASTQ_DIR, "barcode_{barcode}.fastq.gz"), barcode=BARCODES),
-        unclassified=os.path.join(FASTQ_DIR, "unclassified.fastq.gz"),
-        # With modified bases the bam files are an output, not an intermediate.
-        bam=(
-            expand(os.path.join(BAM_DIR, "barcode_{barcode}.bam"), barcode=BARCODES)
-            if MODIFICATIONS
-            else []
+        # A record of the run, so required here rather than by basecall: the log is
+        # something a run produces, not something basecalling reads.
+        logfile=LOGFILE,
+        fastq=expand(
+            rules.compress.output.output_file,
+            filename=["barcode_" + bc for bc in BARCODES] + ["unclassified"],
         ),
-        plot1=os.path.join(STATISTICS_DIR, "len_hist.png"),
-        plot2=os.path.join(STATISTICS_DIR, "bp_per_barcode.png"),
-        plot3=os.path.join(STATISTICS_DIR, "quality_hist.png"),
-        plot4=os.path.join(STATISTICS_DIR, "low_quality.png"),
+        # With modified bases the bam files are an output, not an intermediate.
+        bam=rules.demultiplex.output.barcodes if MODIFICATIONS else [],
+        plot1=rules.make_plots_lengths.output.len_hist,
+        plot2=rules.make_plots_lengths.output.bp_per_barcode,
+        plot3=rules.make_plots_quality.output.quality_hist_plot,
+        plot4=rules.make_plots_quality.output.low_quality_plot,
         clean=os.path.join(DATA_DIR, ".cleaned_dummy_file.txt"),  # comment for debugging
     default_target: True
 
