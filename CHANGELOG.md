@@ -4,12 +4,9 @@
 
 ### Fixed
 
-- **`demultiplex` no longer times out on a real run.** It was inheriting the 30-minute QoS,
-  which is not enough for `dorado demux` on a full flow cell; it now asks for 355 minutes
-  under `6hours`.
-- **Re-running a partially completed run no longer re-basecalls it.** `basecalling.log`
-  carries the execution time, so it changed on every invocation and invalidated the GPU job
-  behind it. It is now required at the end of the workflow rather than by `basecall`.
+- **increased `demultiplex` runtime** to 6 hours, to avoid timeout.
+- **Re-running a partially completed run no longer re-basecalls it**, which the timestamp in
+  `basecalling.log` used to force.
 
 ## v1.0 — 2026-08-13
 
