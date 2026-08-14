@@ -38,8 +38,10 @@ set-resources:
     gres: "gpu:4"
     qos: "a100-6hours"
   demultiplex:
-    # No `runtime`: the default 29 above is deliberately one minute under the 30min QoS
-    # wall, which the 30 that used to be here was not.
+    # A real run does not demux in half an hour — this timed out on the default 29 above.
+    # 355 leaves the 6hours QoS the same margin basecall leaves its own.
+    runtime: 355
+    qos: "6hours"
     mem_mb: 16000
   combine_stats:
     mem_mb: 16000
