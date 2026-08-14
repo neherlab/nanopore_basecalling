@@ -205,6 +205,9 @@ include: "rules/statistics.smk"
 
 rule all:
     input:
+        # A record of the run, so required here rather than by basecall: the log is
+        # something a run produces, not something basecalling reads.
+        logfile=LOGFILE,
         fastq=expand(os.path.join(FASTQ_DIR, "barcode_{barcode}.fastq.gz"), barcode=BARCODES),
         unclassified=os.path.join(FASTQ_DIR, "unclassified.fastq.gz"),
         # With modified bases the bam files are an output, not an intermediate.
