@@ -19,6 +19,7 @@ Update of the toolchain, configuration and pipeline layout:
 - The settings of a run and its sample table moved next to its data.
 - Models and modifications are resolved from dorado's own catalogue and checked before any job is submitted.
 - Improvements in the statistics and plots.
+- Change in cluster resources requirement (less gpu and shorter default job duration).
 - Various bug fixes and improvements.
 
 ### Breaking

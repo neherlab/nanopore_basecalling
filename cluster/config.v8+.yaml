@@ -13,13 +13,18 @@ rerun-incomplete: True
 printshellcmds: False
 keep-going: False
 
+# Retry a failed job once. This is here for `basecall`, whose first attempt asks for less
+# wall clock than the QoS allows so that it is scheduled sooner — see below. Note it
+# applies to every rule, so a genuine failure now shows up twice in the log before
+# snakemake gives up.
+restart-times: 1
+
 # `dorado basecaller` has no thread option, so this does not reach it: it only sizes
 # the allocation (--cpus-per-task) that dorado then finds. Dorado still needs CPUs for
-# pod5 decoding, trimming and BAM writing alongside the GPUs. 16 is a guess inherited
-# from the pre-migration config (which asked for 32) and wants checking against the
-# efficiency report.
+# pod5 decoding, trimming and BAM writing alongside the GPUs. 4 per GPU; the first
+# efficiency report measured 15.8 % of 16 cores busy, so this is not tight.
 set-threads:
-  basecall: 16
+  basecall: 8
 
 default-resources:
   runtime: 29
@@ -28,14 +33,32 @@ default-resources:
 
 # Do not add a `tasks` resource to a rule that also asks for GPUs: the slurm
 # executor turns it into `--ntasks-per-gpu`, which starts one copy of the job
-# per GPU. Basecalling wants a single task holding all four GPUs.
+# per GPU. Basecalling wants a single task holding all of them.
+#
+# What `basecall` asks for is what decides how long a run waits in the queue, and it is
+# worth more than any speed-up: the job is short, the wait is hours. Two things drive it.
+# Four GPUs on one node means a *fully idle* node, since the a100 nodes have four each,
+# and one other user's single-GPU job blocks that indefinitely; two fits a half-used node.
+# And a long `runtime` cannot be backfilled — slurm starts a job out of order only if it
+# can prove it finishes before the next reservation, and a six-hour hole is far rarer than
+# a four-hour one. Basecalling scales about linearly with GPUs, so two GPUs for four hours
+# costs the same GPU-hours as four for two; what changes is the shape of the request.
 set-resources:
   basecall:
-    runtime: 355
-    mem_mb: 100000
+    gres: "gpu:2"
+    # Minutes. The first attempt asks for what a full MinION flow cell should need on two
+    # A100s (~2.5-3 Gbp/h per GPU for sup@v5.2.0, so ~3.5 h for 20 Gbp). A run that hits
+    # the limit is retried by `restart-times` above at 355, which is the a100-6hours
+    # ceiling less a margin — so the short first ask costs GPU time if it is wrong, never
+    # the run. Both numbers are estimates from a published H100 benchmark, not
+    # measurements: recalibrate from efficiency_reports/ after a real run.
+    runtime: "240 if attempt == 1 else 355"
+    # Deliberately not lower. The 729 MB the first report measured is startup-dominated on
+    # tiny data — sacct samples RSS every 30 s and almost every job ran under 31 s — and
+    # dorado's host memory grows with batch size and GPU count.
+    mem_mb: 32000
     nodes: 1
     slurm_partition: "a100"
-    gres: "gpu:4"
     qos: "a100-6hours"
   demultiplex:
     # A real run does not demux in half an hour — this timed out on the default 29 above.
