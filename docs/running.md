@@ -137,6 +137,21 @@ snakemake --profile cluster --config run_dir=my_run
 
 Detach with `Ctrl-b d`, and come back later with `tmux a`.
 
+### Without a GPU
+
+If the GPU queue is too long, the `cluster-cpu` profile basecalls on CPUs instead. It is
+otherwise the same as `cluster`:
+
+```bash
+snakemake --profile cluster-cpu --config run_dir=my_run model=fast@v5.2.0
+```
+
+This is a fallback for small runs only. Basecalling on CPU is **orders of magnitude** slower
+than on a GPU. On 20 cores, `fast` manages about 100 times less than `sup` on a single A100,
+and `hac` is slower still. A full flow cell is out of reach on CPU with any model, so use the
+`fast` model (see [docs/models.md](models.md)) and keep this for small test runs. Running
+locally on a machine without a GPU uses the CPU automatically, with no extra setting.
+
 ### Calling methylation
 
 To call DNA modifications, modify the corresponding entry in `run.yaml`:

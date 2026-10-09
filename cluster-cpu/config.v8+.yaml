@@ -1,0 +1,50 @@
+# Fallback profile for when the a100 queue is too long: identical to cluster/ except
+# that `basecall` asks for CPUs instead of GPUs. No rule changes with it — dorado is
+# called without `-x`, so it defaults to `auto` and, finding no GPU in the allocation,
+# basecalls on the CPU.
+#
+# CPU basecalling is orders of magnitude slower than an A100 (on 20 cores, `fast` does
+# ~1e5 samples/s and `hac` ~3e3, against ~1e7 for `sup` on one A100), so it is only for
+# small runs, with the fast model:
+#   snakemake --profile cluster-cpu --config run_dir=<run> model=fast@v5.2.0
+#
+# The `basecall` values below are placeholders, not measurements.
+
+executor: slurm
+jobs: 25
+latency-wait: 90
+
+slurm-efficiency-report: True
+slurm-efficiency-report-path: "efficiency_reports"
+
+software-deployment-method: conda
+rerun-incomplete: True
+printshellcmds: False
+keep-going: False
+
+# On CPU these are what dorado basecalls with (it sizes its runners from the cores
+# and memory it sees), so unlike the GPU profile this number matters.
+set-threads:
+  basecall: 32
+
+default-resources:
+  runtime: 29
+  mem_mb: 4000
+  qos: "30min"
+
+set-resources:
+  basecall:
+    runtime: 1430
+    mem_mb: 64000
+    nodes: 1
+    qos: "1day"
+  demultiplex:
+    runtime: 355
+    qos: "6hours"
+    mem_mb: 16000
+  combine_stats:
+    mem_mb: 16000
+  make_plots_lengths:
+    mem_mb: 16000
+  make_plots_quality:
+    mem_mb: 16000

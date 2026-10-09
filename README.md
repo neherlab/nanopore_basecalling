@@ -50,3 +50,4 @@ Basecalling accuracy for bacterial de novo assemblies using Nanopore only has be
 | `scripts/`              | the python steps, one script per rule, plus a shared `utils.py`                       |
 | `config/config.yaml`    | the toolchain and the default settings, overridden per run by `<run folder>/run.yaml` |
 | `cluster/`              | the SLURM profile                                                                     |
+| `cluster-cpu/`          | the same, basecalling on CPUs instead of GPUs (a fallback for a long GPU queue)       |
