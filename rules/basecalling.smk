@@ -42,8 +42,14 @@ rule basecall:
         # Dorado takes the modified-base models as one comma separated list, and writes
         # every modification it is given into the same bam.
         mods_flag=("--modified-bases-models " + ",".join(MODS_PATHS)) if MODIFICATIONS else "",
+    # Only read when basecalling on CPU, set by the cluster-cpu profile. Dorado otherwise
+    # sizes its CPU runners from the whole node rather than the slurm allocation, and
+    # runs out of memory. 0 leaves dorado's own choice.
+    resources:
+        cpu_runners=0,
     shell:
         """
+        if [ {resources.cpu_runners} -gt 0 ]; then export DORADO_CPU_RUNNERS={resources.cpu_runners}; fi
         {params.dorado} basecaller {input.model} {input.input_dir} {params.mods_flag} --kit-name {params.kit} > {output.file} 2> {log}
         """
 

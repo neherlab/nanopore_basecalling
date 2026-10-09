@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- **`cluster-cpu` profile**, to basecall on CPUs when the GPU queue is too long.
+
 ### Fixed
 
 - **increased `demultiplex` runtime** to 6 hours, to avoid timeout.

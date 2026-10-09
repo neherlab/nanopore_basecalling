@@ -137,6 +137,24 @@ snakemake --profile cluster --config run_dir=my_run
 
 Detach with `Ctrl-b d`, and come back later with `tmux a`.
 
+### Without a GPU
+
+If the GPU queue is too long, the `cluster-cpu` profile basecalls on CPUs instead. It is
+otherwise the same as `cluster`:
+
+```bash
+snakemake --profile cluster-cpu --config run_dir=my_run model=fast@v5.2.0
+```
+
+This is a fallback for small runs only. On 32 cores the `fast` model basecalls about 1 Gbp
+every 2 hours and `hac` about 1 Gbp every 15 hours. The default `sup` is out of reach on
+CPU, at about two months per Gbp. For comparison, one A100 runs `sup` at about 20 minutes
+per Gbp. To estimate the size of a run, divide the size of its pod5 files by roughly
+12 GB per Gbp (`du -sh my_run/raw`). The job may run for up to a week: a run that needs
+longer fails and has to be started again. See [docs/models.md](models.md) for how the
+models compare. Running locally on a machine without a GPU uses the CPU automatically,
+with no extra setting.
+
 ### Calling methylation
 
 To call DNA modifications, modify the corresponding entry in `run.yaml`:
