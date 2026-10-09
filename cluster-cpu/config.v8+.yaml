@@ -3,8 +3,8 @@
 # defaults to `auto` and, finding no GPU in the allocation, basecalls on the CPU.
 #
 # CPU basecalling is slow: on 32 cores `fast` does
-# ~1.6e6 samples/s, about 2 h per Gbp, `hac` ~10x less, and `sup` is out of reach. One
-# A100 does `sup` at ~1.2e7. So this is for small runs, with the fast model:
+# ~1.6e6 samples/s, about 2 h per Gbp, `hac` ~2.5e5, about 15 h per Gbp, and `sup` is
+# out of reach. One A100 does `sup` at ~1.2e7, about 20 min per Gbp. So this is for small runs, with the fast model:
 #   snakemake --profile cluster-cpu --config run_dir=<run> model=fast@v5.2.0
 
 executor: slurm
@@ -34,10 +34,12 @@ set-resources:
     # allocation: fast took 30 GB and hac was killed at 64 GB. 16 runners measured
     # 9 GB for fast; hac at 16 runners needs more than 16 GB, hence the 32.
     cpu_runners: 16
-    runtime: 1430
+    # The week limit (less a margin, like the other rules) rather than a day: a run that
+    # hits the wall loses everything, and a day holds only ~1.5 Gbp of hac.
+    runtime: 10070
     mem_mb: 32000
     nodes: 1
-    qos: "1day"
+    qos: "1week"
   demultiplex:
     runtime: 355
     qos: "6hours"
