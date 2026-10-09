@@ -127,7 +127,8 @@ You can check [docs/models.md](models.md) for more details on model choice.
 ### On the cluster (recommended)
 
 Basecalling might take hours, so start a `tmux` session first — that way the pipeline survives
-losing your connection. Then in the session activate the environment and launch the pipeline:
+losing your connection. Then in the session **enter the folder where you store the pipeline**,
+activate the environment and launch the pipeline:
 
 ```bash
 conda activate nanopore_basecalling
