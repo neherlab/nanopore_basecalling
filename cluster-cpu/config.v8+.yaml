@@ -1,14 +1,11 @@
 # Fallback profile for when the a100 queue is too long: identical to cluster/ except
-# that `basecall` asks for CPUs instead of GPUs. No rule changes with it — dorado is
-# called without `-x`, so it defaults to `auto` and, finding no GPU in the allocation,
-# basecalls on the CPU.
+# that `basecall` asks for CPUs instead of GPUs. Dorado is called without `-x`, so it
+# defaults to `auto` and, finding no GPU in the allocation, basecalls on the CPU.
 #
-# CPU basecalling is orders of magnitude slower than an A100 (on 20 cores, `fast` does
-# ~1e5 samples/s and `hac` ~3e3, against ~1e7 for `sup` on one A100), so it is only for
-# small runs, with the fast model:
+# CPU basecalling is slow: on 32 cores `fast` does
+# ~1.6e6 samples/s, about 2 h per Gbp, `hac` ~10x less, and `sup` is out of reach. One
+# A100 does `sup` at ~1.2e7. So this is for small runs, with the fast model:
 #   snakemake --profile cluster-cpu --config run_dir=<run> model=fast@v5.2.0
-#
-# The `basecall` values below are placeholders, not measurements.
 
 executor: slurm
 jobs: 25
@@ -22,8 +19,7 @@ rerun-incomplete: True
 printshellcmds: False
 keep-going: False
 
-# On CPU these are what dorado basecalls with (it sizes its runners from the cores
-# and memory it sees), so unlike the GPU profile this number matters.
+# Measured: 32 cores with 16 runners is the fastest; 64 cores add nothing.
 set-threads:
   basecall: 32
 
@@ -34,8 +30,12 @@ default-resources:
 
 set-resources:
   basecall:
+    # Left to itself dorado sizes its CPU runners from the whole node, not this
+    # allocation: fast took 30 GB and hac was killed at 64 GB. 16 runners measured
+    # 9 GB for fast; hac at 16 runners needs more than 16 GB, hence the 32.
+    cpu_runners: 16
     runtime: 1430
-    mem_mb: 64000
+    mem_mb: 32000
     nodes: 1
     qos: "1day"
   demultiplex:

@@ -146,11 +146,12 @@ otherwise the same as `cluster`:
 snakemake --profile cluster-cpu --config run_dir=my_run model=fast@v5.2.0
 ```
 
-This is a fallback for small runs only. Basecalling on CPU is **orders of magnitude** slower
-than on a GPU. On 20 cores, `fast` manages about 100 times less than `sup` on a single A100,
-and `hac` is slower still. A full flow cell is out of reach on CPU with any model, so use the
-`fast` model (see [docs/models.md](models.md)) and keep this for small test runs. Running
-locally on a machine without a GPU uses the CPU automatically, with no extra setting.
+This is a fallback for small runs only. On 32 cores the `fast` model basecalls about 1 Gbp
+every 2 hours, so up to ~10 Gbp fits in the profile's one-day limit. `hac` is about ten
+times slower, and the default `sup` is out of reach on CPU. One A100 runs `sup` about ten
+times faster than the CPUs run `fast`. See [docs/models.md](models.md) for the trade-off
+between the models. Running locally on a machine without a GPU uses the CPU automatically,
+with no extra setting.
 
 ### Calling methylation
 
